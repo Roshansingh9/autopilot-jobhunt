@@ -48,9 +48,7 @@ def load_config() -> dict:
 
     config = json.loads(p.read_text())
 
-    print("========== CONFIG LOADED ==========")
-    print(config["candidate"])
-    print("===================================")
+
 
 
 
