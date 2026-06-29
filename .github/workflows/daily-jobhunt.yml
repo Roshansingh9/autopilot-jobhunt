@@ -10,7 +10,7 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     env:
       TZ: Asia/Kolkata
@@ -31,85 +31,52 @@ jobs:
           pip install -e .
 
       - name: Create config.json
+        run: cp config.example.json config.json
+
+      - name: Update config.json
+        env:
+          TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          cp config.example.json config.json
+          python -c "
+import json, os
 
-      - name: Configure config.json
-        run: |
-          python <<EOF
-          import json
+with open('config.json') as f:
+    cfg = json.load(f)
 
-          with open("config.json") as f:
-              cfg = json.load(f)
+cfg['tinyfish_api_key'] = os.environ['TINYFISH_API_KEY']
+cfg['openrouter_api_key'] = os.environ['OPENROUTER_API_KEY']
+cfg['openrouter_model'] = 'openrouter/free'
 
-          cfg["tinyfish_api_key"] = "${{ secrets.TINYFISH_API_KEY }}"
-          cfg["openrouter_api_key"] = "${{ secrets.OPENROUTER_API_KEY }}"
+cfg['telegram']['token'] = os.environ['TELEGRAM_TOKEN']
+cfg['telegram']['chat_id'] = os.environ['TELEGRAM_CHAT_ID']
 
-          cfg["telegram"]["token"] = "${{ secrets.TELEGRAM_TOKEN }}"
-          cfg["telegram"]["chat_id"] = "${{ secrets.TELEGRAM_CHAT_ID }}"
+cfg['candidate']['name'] = 'Roshan Kumar Singh'
+cfg['candidate']['resume_path'] = 'resume/RESUME.md'
+cfg['candidate']['profile'] = 'Backend-focused Software Engineer skilled in Python, FastAPI, PostgreSQL, Redis, AWS, Distributed Systems and Applied AI. Amazon ML Summer School Top 5%. CodeChef 4★.'
+cfg['candidate']['seeking'] = 'Software Engineer, Backend Engineer, AI Engineer, Machine Learning Engineer. India and Remote.'
+cfg['candidate']['not_suitable'] = 'Senior, Staff, Principal, Manager, Director, Frontend-only roles.'
+cfg['candidate']['relocation_note'] = 'Open to relocation within India and remote opportunities.'
+cfg['candidate']['min_score'] = 80
+cfg['candidate']['top_n'] = 5
 
-          cfg["candidate"]["name"] = "Roshan Kumar Singh"
-          cfg["candidate"]["resume_path"] = "resume/RESUME.md"
+with open('config.json','w') as f:
+    json.dump(cfg, f, indent=2)
 
-          cfg["candidate"]["profile"] = (
-              "Backend-focused Software Engineer and 2026 Computer Science graduate. "
-              "Strong in Python, FastAPI, PostgreSQL, Redis, AWS, distributed systems, "
-              "algorithms and applied AI."
-          )
-
-          cfg["candidate"]["seeking"] = (
-              "Software Engineer, Backend Engineer, AI Engineer, "
-              "Machine Learning Engineer. India and Remote only."
-          )
-
-          cfg["candidate"]["not_suitable"] = (
-              "Senior roles, Staff roles, Principal roles, "
-              "non-technical roles and frontend-only roles."
-          )
-
-          cfg["candidate"]["relocation_note"] = (
-              "Open to relocation anywhere in India and remote opportunities."
-          )
-
-          cfg["candidate"]["min_score"] = 85
-          cfg["candidate"]["top_n"] = 5
-
-          with open("config.json", "w") as f:
-              json.dump(cfg, f, indent=2)
-
-          print("========== GENERATED CONFIG ==========")
-          print(json.dumps(cfg, indent=2))
-          EOF
+print(json.dumps(cfg['candidate'], indent=2))
+"
 
       - name: Verify Repository
         run: |
-          echo "========== CURRENT DIRECTORY =========="
           pwd
-
-          echo ""
-          echo "========== FILES =========="
           ls -R
-
-          echo ""
-          echo "========== RESUME =========="
           test -f resume/RESUME.md
-
-          echo ""
-          echo "========== CONFIG =========="
           cat config.json
 
-          echo ""
-          echo "========== CANDIDATE =========="
-          python - <<EOF
-          import json
-          with open("config.json") as f:
-              cfg=json.load(f)
-          print(cfg["candidate"])
-          EOF
-
       - name: Run Job Scanner
-        run: |
-          autopilot scan
+        run: autopilot scan
 
       - name: Upload Results
         if: always()
