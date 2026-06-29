@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
 Usage:
-  autopilot init              — set up working directory (first-time pip install setup)
-  autopilot scan              — run daily job scan
-  autopilot draft #1          — draft application for job #1 from last scan
-  autopilot draft https://... — draft application for a specific URL
-  autopilot export            — export last scan to CSV (output/jobs_YYYY-MM-DD.csv)
-  autopilot export --min 60   — export only jobs with score >= 60
-  autopilot export --days 7   — export jobs from last 7 days (requires scan history)
-  autopilot export --days 7 --min 60  — combine filters
+  autopilot init                              — set up working directory
+  autopilot scan                              — run daily job scan (all companies)
+  autopilot scan --batch 0 --total-batches 3  — scan batch 0 of 3 (parallel runners)
+  autopilot merge --artifacts-dir artifacts/  — merge batch results, send Telegram
+  autopilot draft #1                          — draft application for job #1
+  autopilot draft https://...                 — draft for a specific job URL
+  autopilot export                            — export last scan to CSV
+  autopilot export --min 60                   — export only jobs with score >= 60
+  autopilot export --days 7                   — export jobs from last 7 days
+  autopilot export --days 7 --min 60          — combine filters
+
+Batch env vars (alternative to CLI flags):
+  BATCH_INDEX=0 TOTAL_BATCHES=3 autopilot scan
 """
 import csv
 import json
@@ -170,6 +175,37 @@ def _job_to_row(j: dict) -> dict:
     }
 
 
+def _parse_batch_args(argv: list[str]) -> tuple[int, int]:
+    """
+    Parse --batch / --total-batches flags for parallel scanning.
+    Falls back to BATCH_INDEX / TOTAL_BATCHES env vars.
+    Returns (batch_index, total_batches); defaults to (0, 1) meaning "all companies".
+    """
+    batch_index = int(os.getenv("BATCH_INDEX", "0"))
+    total_batches = int(os.getenv("TOTAL_BATCHES", "1"))
+
+    if "--batch" in argv:
+        idx = argv.index("--batch")
+        try:
+            batch_index = int(argv[idx + 1])
+        except (IndexError, ValueError):
+            sys.exit("--batch requires an integer, e.g. --batch 0")
+
+    if "--total-batches" in argv:
+        idx = argv.index("--total-batches")
+        try:
+            total_batches = int(argv[idx + 1])
+        except (IndexError, ValueError):
+            sys.exit("--total-batches requires an integer, e.g. --total-batches 3")
+
+    if total_batches < 1:
+        sys.exit("--total-batches must be >= 1")
+    if not (0 <= batch_index < total_batches):
+        sys.exit(f"--batch must be between 0 and {total_batches - 1}")
+
+    return batch_index, total_batches
+
+
 def _parse_export_args(argv: list[str]) -> tuple[int, int]:
     """Parse --min / --days flags for the export command. No API keys required."""
     min_score = 0
@@ -247,8 +283,28 @@ def main() -> None:
     config = load_config()
 
     if cmd == "scan":
+        batch_index, total_batches = _parse_batch_args(sys.argv)
+        companies = load_companies()
+
+        if total_batches > 1:
+            # Interleaved slicing: batch 0 → [0,3,6,...], batch 1 → [1,4,7,...], etc.
+            companies = companies[batch_index::total_batches]
+            state_dir = Path(f"state_batch_{batch_index}")
+            output_dir = Path(f"output_batch_{batch_index}")
+            print(
+                f"Batch {batch_index}/{total_batches}: "
+                f"{len(companies)} companies | {state_dir} | {output_dir}"
+            )
+        else:
+            state_dir = None   # run_scan defaults to Path("state")
+            output_dir = None  # run_scan defaults to Path("output")
+
         from job_hunt.scanner import run_scan
-        run_scan(config, load_companies())
+        run_scan(config, companies, state_dir=state_dir, output_dir=output_dir)
+
+    elif cmd == "merge":
+        from job_hunt.merge import run_merge
+        run_merge(sys.argv[2:])  # strip 'autopilot merge', pass remaining flags
 
     elif cmd == "draft":
         if len(sys.argv) < 3:

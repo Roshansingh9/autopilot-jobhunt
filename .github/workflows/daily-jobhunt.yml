@@ -3,21 +3,33 @@ name: Daily Job Hunt
 
 on:
   workflow_dispatch:
-
   schedule:
-    - cron: "30 2 * * *"
+    - cron: "30 2 * * *"   # 08:00 IST daily
+
+# ── Shared config ─────────────────────────────────────────────────────────────
+env:
+  TOTAL_BATCHES: 3
+  PYTHON_VERSION: "3.11"
+  MIN_SCORE: "80"
+  TOP_N: "5"
 
 jobs:
+  # ── Parallel scan: one runner per batch ─────────────────────────────────────
   scan:
+    name: "Scan — Batch ${{ matrix.batch }}"
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30          # 15–20 min expected; 30 min hard cap per runner
+
+    strategy:
+      fail-fast: false           # one failing batch must not cancel the others
+      matrix:
+        batch: [0, 1, 2]
 
     env:
       TZ: Asia/Kolkata
       TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      BATCH_INDEX: ${{ matrix.batch }}
 
     steps:
       - name: Checkout Repository
@@ -26,7 +38,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
       - name: Install Dependencies
@@ -37,67 +49,105 @@ jobs:
       - name: Create config.json
         run: cp config.example.json config.json
 
-      - name: Update config.json
+      - name: Configure Candidate Profile
         run: |
           python - <<'PYTHON'
-          import json
-          import os
+          import json, os
 
           with open("config.json") as f:
               cfg = json.load(f)
 
-          cfg["tinyfish_api_key"] = os.environ["TINYFISH_API_KEY"]
+          cfg["tinyfish_api_key"]   = os.environ["TINYFISH_API_KEY"]
           cfg["openrouter_api_key"] = os.environ["OPENROUTER_API_KEY"]
-          cfg["openrouter_model"] = "openrouter/free"
 
-          cfg["telegram"]["token"] = os.environ["TELEGRAM_TOKEN"]
-          cfg["telegram"]["chat_id"] = os.environ["TELEGRAM_CHAT_ID"]
-
-          cfg["candidate"]["name"] = "Roshan Kumar Singh"
-          cfg["candidate"]["resume_path"] = "resume/RESUME.md"
-          cfg["candidate"]["profile"] = (
-              "Backend-focused Software Engineer skilled in Python, FastAPI, "
-              "PostgreSQL, Redis, AWS, Distributed Systems and Applied AI."
-          )
-          cfg["candidate"]["seeking"] = (
-              "Software Engineer, Backend Engineer, AI Engineer, "
-              "Machine Learning Engineer. India and Remote."
-          )
-          cfg["candidate"]["not_suitable"] = (
-              "Senior, Staff, Principal, Manager, Director, Frontend-only roles."
-          )
-          cfg["candidate"]["relocation_note"] = (
-              "Open to relocation within India and remote opportunities."
-          )
-          cfg["candidate"]["min_score"] = 80
-          cfg["candidate"]["top_n"] = 5
+          cfg["candidate"].update({
+              "name":             "Roshan Kumar Singh",
+              "resume_path":      "resume/RESUME.md",
+              "profile":          (
+                  "Backend-focused Software Engineer skilled in Python, FastAPI, "
+                  "PostgreSQL, Redis, AWS, Distributed Systems and Applied AI."
+              ),
+              "seeking":          (
+                  "Software Engineer, Backend Engineer, AI Engineer, "
+                  "Machine Learning Engineer. India and Remote."
+              ),
+              "not_suitable":     "Senior, Staff, Principal, Manager, Director, Frontend-only roles.",
+              "relocation_note":  "Open to relocation within India and remote opportunities.",
+              "min_score":        int(os.environ.get("MIN_SCORE", "80")),
+              "top_n":            int(os.environ.get("TOP_N", "5")),
+          })
 
           with open("config.json", "w") as f:
               json.dump(cfg, f, indent=2)
 
-          print("===== GENERATED CONFIG =====")
+          print("=== Candidate config ===")
           print(json.dumps(cfg["candidate"], indent=2))
           PYTHON
 
-      - name: Verify Files
+      - name: Run Scanner (Batch ${{ matrix.batch }} / ${{ env.TOTAL_BATCHES }})
         run: |
-          pwd
-          ls -R
-          echo "===== RESUME ====="
-          ls -l resume
-          echo "===== CONFIG ====="
-          cat config.json
+          autopilot scan \
+            --batch ${{ matrix.batch }} \
+            --total-batches ${{ env.TOTAL_BATCHES }}
 
-      - name: Run Scanner
+      - name: Upload Batch Artifacts
+        if: always()           # upload even when the scan step fails partially
+        uses: actions/upload-artifact@v4
+        with:
+          name: batch-${{ matrix.batch }}
+          path: |
+            state_batch_${{ matrix.batch }}/
+            output_batch_${{ matrix.batch }}/
+          if-no-files-found: warn
+
+  # ── Merge: runs after ALL batches finish (pass or fail) ─────────────────────
+  merge:
+    name: "Merge & Notify"
+    runs-on: ubuntu-latest
+    needs: scan
+    if: always()               # run even when some scan jobs fail
+    timeout-minutes: 10
+
+    env:
+      TZ: Asia/Kolkata
+      TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Dependencies
         run: |
-          python -m job_hunt.main scan
+          python -m pip install --upgrade pip
+          pip install -e .
 
-      - name: Upload Results
+      - name: Download All Batch Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/      # each artifact lands in artifacts/batch-N/
+
+      - name: Show Downloaded Files
+        run: find artifacts/ -type f | sort
+
+      - name: Merge Results and Send Telegram
+        run: |
+          autopilot merge \
+            --artifacts-dir artifacts/ \
+            --total-batches ${{ env.TOTAL_BATCHES }} \
+            --min-score ${{ env.MIN_SCORE }} \
+            --top-n ${{ env.TOP_N }}
+
+      - name: Upload Merged Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: autopilot-results
-          path: |
-            output/**
-            state/**
-            config.json
+          name: merged-results
+          path: artifacts/
+          if-no-files-found: warn

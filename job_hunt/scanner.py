@@ -17,6 +17,30 @@ STATE_FILE = Path("state/seen_jobs.json")
 LAST_SCAN_FILE = Path("state/last_scan.json")
 JOB_HISTORY_FILE = Path("state/job_history.json")
 
+# ── Deterministic pre-filter constants ──────────────────────────────────────
+
+_BLOCKED_SENIORITY = frozenset({
+    "senior", "staff", "principal", "lead", "manager", "director",
+    "architect", "vp", "head",
+})
+
+_BLOCKED_FUNCTIONS = frozenset({
+    "marketing", "sales", "finance", "hr", "recruiter", "recruiting",
+    "talent acquisition", "customer success", "legal", "operations",
+    "business development", "design", "graphic", "product marketing",
+    "account manager", "account executive", "partnership", "brand",
+})
+
+_ENGINEERING_KEYWORDS = frozenset({
+    "software", "engineer", "backend", "ai", "ml", "machine learning",
+    "python", "platform", "infrastructure", "distributed", "data",
+    "sre", "devops", "site reliability", "fullstack", "full stack",
+    "cloud", "systems", "developer", "programmer", "scientist",
+    "mlops", "applied", "research", "analytics",
+})
+
+_MAX_JOBS_PER_COMPANY = 20
+
 JOB_URL_RE = re.compile(
     r"/(job|jobs|opening|openings|position|positions|vacancy|vacancies|role|roles|apply)"
     r"/[a-zA-Z0-9_%@.-]{4,}",
@@ -99,15 +123,100 @@ def is_ats_listing(url: str) -> bool:
     return bool(ATS_LISTING_RE.match(url))
 
 
-def load_state() -> dict:
-    if STATE_FILE.exists():
-        return json.loads(STATE_FILE.read_text())
+# ── Pre-filter helpers ───────────────────────────────────────────────────────
+
+def _has_blocked_seniority(title: str) -> bool:
+    words = set(re.split(r"[\s\-/,|]+", title.lower()))
+    return bool(words & _BLOCKED_SENIORITY)
+
+
+def _has_blocked_function(title: str) -> bool:
+    t = title.lower()
+    return any(fn in t for fn in _BLOCKED_FUNCTIONS)
+
+
+def _has_engineering_keyword(text: str) -> bool:
+    t = text.lower()
+    return any(kw in t for kw in _ENGINEERING_KEYWORDS)
+
+
+def _prefilter_by_title(jobs: list[dict]) -> tuple[list[dict], int]:
+    """Filter on URL-slug title before fetching job content (fast, zero API cost)."""
+    kept, discarded = [], 0
+    for job in jobs:
+        title = job.get("title", "")
+        # Numeric-only titles come from ATS job IDs — can't determine, keep them
+        if re.fullmatch(r"\d+", title.strip()):
+            kept.append(job)
+            continue
+        if _has_blocked_seniority(title) or _has_blocked_function(title):
+            discarded += 1
+            continue
+        kept.append(job)
+    return kept, discarded
+
+
+def _prefilter_by_content(jobs: list[dict]) -> tuple[list[dict], int]:
+    """Filter on real title + fetched content (runs after fetch_job_details)."""
+    kept, discarded = [], 0
+    for job in jobs:
+        title = job.get("title") or ""
+        content = job.get("content", "")
+        if re.fullmatch(r"\d+", title.strip()):
+            kept.append(job)
+            continue
+        if _has_blocked_seniority(title) or _has_blocked_function(title):
+            discarded += 1
+            continue
+        # Require at least one engineering keyword in title; fall back to content
+        if title and not _has_engineering_keyword(title):
+            if not _has_engineering_keyword(f"{title} {content[:300]}"):
+                discarded += 1
+                continue
+        kept.append(job)
+    return kept, discarded
+
+
+def _extract_json_array(text: str) -> list | None:
+    """Robustly extract a JSON array from LLM output that may contain markdown or prose."""
+    text = text.strip()
+    # 1. Direct parse
+    try:
+        result = json.loads(text)
+        if isinstance(result, list):
+            return result
+    except json.JSONDecodeError:
+        pass
+    # 2. Markdown code block
+    m = re.search(r"```(?:json)?\s*(\[[\s\S]*?\])\s*```", text)
+    if m:
+        try:
+            result = json.loads(m.group(1))
+            if isinstance(result, list):
+                return result
+        except json.JSONDecodeError:
+            pass
+    # 3. Outermost [...] span
+    start, end = text.find("["), text.rfind("]") + 1
+    if start != -1 and end > start:
+        try:
+            result = json.loads(text[start:end])
+            if isinstance(result, list):
+                return result
+        except json.JSONDecodeError:
+            pass
+    return None
+
+
+def load_state(state_file: Path = STATE_FILE) -> dict:
+    if state_file.exists():
+        return json.loads(state_file.read_text())
     return {"seen_urls": []}
 
 
-def save_state(state: dict) -> None:
-    STATE_FILE.parent.mkdir(exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, indent=2))
+def save_state(state: dict, state_file: Path = STATE_FILE) -> None:
+    state_file.parent.mkdir(exist_ok=True)
+    state_file.write_text(json.dumps(state, indent=2))
 
 
 _FETCH_URL_DELAY = 2.5
@@ -242,23 +351,28 @@ def score_jobs(jobs: list[dict], resume: str, config: dict) -> list[dict]:
         min_score=min_score,
     )
 
+    messages = [{"role": "user", "content": prompt}]
     logger.debug(f"  Scoring {len(jobs)} job(s) via LLM (min_score={min_score})...")
-    t0 = time.time()
-    try:
-        raw = chat_with_llm(
-            config,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-        )
-        elapsed = time.time() - t0
-        start, end = raw.find("["), raw.rfind("]") + 1
-        if start == -1:
-            logger.error("  LLM returned no JSON array")
-            return []
-        scored = json.loads(raw[start:end])
-        logger.debug(f"  LLM scoring complete in {elapsed:.1f}s — {len(scored)} results parsed")
-    except Exception as e:
-        logger.error(f"  Scoring error: {e}")
+
+    scored = None
+    for attempt in range(2):
+        t0 = time.time()
+        try:
+            raw = chat_with_llm(config, messages=messages, temperature=0.1)
+            elapsed = time.time() - t0
+            scored = _extract_json_array(raw)
+            if scored is not None:
+                logger.debug(f"  LLM scoring complete in {elapsed:.1f}s — {len(scored)} results parsed")
+                break
+            logger.warning(
+                f"  LLM returned unparseable JSON (attempt {attempt + 1}/2): {raw[:200]!r}"
+            )
+        except Exception as e:
+            elapsed = time.time() - t0
+            logger.error(f"  Scoring error (attempt {attempt + 1}/2, {elapsed:.1f}s): {e}")
+
+    if scored is None:
+        logger.error("  Skipping batch — could not extract valid JSON after 2 attempts")
         return []
 
     results = []
@@ -303,9 +417,9 @@ def format_telegram_message(top_jobs: list[dict], date_str: str) -> str:
     return "\n".join(lines)
 
 
-def _export_to_csv(jobs: list[dict], label: str) -> Path:
+def _export_to_csv(jobs: list[dict], label: str, output_dir: Path = Path("output")) -> Path:
     date_str = datetime.now().strftime("%Y-%m-%d")
-    out_path = Path("output") / f"jobs_{date_str}.csv"
+    out_path = output_dir / f"jobs_{date_str}.csv"
     out_path.parent.mkdir(exist_ok=True)
 
     def _row(j: dict) -> dict:
@@ -333,10 +447,21 @@ def _export_to_csv(jobs: list[dict], label: str) -> Path:
     return out_path
 
 
-def run_scan(config: dict, companies: list[dict]) -> None:
+def run_scan(
+    config: dict,
+    companies: list[dict],
+    state_dir: Path | None = None,
+    output_dir: Path | None = None,
+) -> None:
+    _state_dir = state_dir if state_dir is not None else Path("state")
+    _output_dir = output_dir if output_dir is not None else Path("output")
+    state_file = _state_dir / "seen_jobs.json"
+    last_scan_file = _state_dir / "last_scan.json"
+    job_history_file = _state_dir / "job_history.json"
+
     scan_start = time.time()
     total = len(companies)
-    logger.info(f"=== Scan started — {total} companies to check ===")
+    logger.info(f"=== Scan started — {total} companies | state={_state_dir} output={_output_dir} ===")
     logger.info(f"Candidate: {config.get('candidate', {}).get('name', 'unknown')}")
     logger.info(f"Min score: {config.get('candidate', {}).get('min_score', 55)} | Top N: {config.get('candidate', {}).get('top_n', 5)}")
     provider = config.get("llm_provider") or "openrouter"
@@ -361,7 +486,7 @@ def run_scan(config: dict, companies: list[dict]) -> None:
     min_score = config.get("candidate", {}).get("min_score", 55)
     top_n = config.get("candidate", {}).get("top_n", 5)
 
-    state = load_state()
+    state = load_state(state_file)
     seen_urls: set = set(state.get("seen_urls", []))
     logger.info(f"State loaded — {len(seen_urls)} previously seen URLs")
 
@@ -379,29 +504,48 @@ def run_scan(config: dict, companies: list[dict]) -> None:
                 companies_scanned += 1
                 continue
 
-            logger.info(f"  {len(new_jobs)} new job URL(s) — fetching details...")
+            # Pre-filter on URL-slug titles before spending TinyFish fetch quota
+            new_jobs, pre_discarded = _prefilter_by_title(new_jobs)
+            if pre_discarded:
+                logger.info(f"  Pre-filter: discarded {pre_discarded} (seniority/function)")
+
+            # Hard cap — sort is not yet possible (no dates pre-fetch), take first N
+            if len(new_jobs) > _MAX_JOBS_PER_COMPANY:
+                logger.info(f"  Capping {len(new_jobs)} → {_MAX_JOBS_PER_COMPANY} jobs")
+                new_jobs = new_jobs[:_MAX_JOBS_PER_COMPANY]
+
+            if not new_jobs:
+                logger.info("  No jobs remaining after pre-filter")
+                companies_scanned += 1
+                continue
+
+            logger.info(f"  {len(new_jobs)} job(s) to fetch...")
             new_jobs = fetch_job_details(tf, new_jobs)
             seen_urls.update(j["url"] for j in new_jobs)
 
-            logger.info(f"  Scoring {len(new_jobs)} job(s)...")
+            # Post-filter on real title + fetched content
+            new_jobs, post_discarded = _prefilter_by_content(new_jobs)
+            if post_discarded:
+                logger.info(f"  Post-filter: discarded {post_discarded} more after content fetch")
+
+            if not new_jobs:
+                logger.info("  No jobs remaining after content filter")
+                companies_scanned += 1
+                continue
+
+            logger.info(f"  Scoring {len(new_jobs)} job(s) in batches of 10...")
             scored: list[dict] = []
-            try:
-                for i in range(0, len(new_jobs), 10):
-                    batch = new_jobs[i: i + 10]
-                    logger.debug(f"  Scoring batch {i // 10 + 1} ({len(batch)} jobs)...")
-                    batch_scored = score_jobs(batch, resume, config)
-                    scored.extend(batch_scored)
-            except Exception as score_err:
-                logger.error(f"  Scoring failed: {score_err}")
-                errors.append(f"⚠️ Scoring failed for {company['name']}: {score_err}")
-                logger.warning(f"  Saving {len(new_jobs)} unscored job(s) as fallback")
-                scored = new_jobs
+            for i in range(0, len(new_jobs), 10):
+                batch = new_jobs[i: i + 10]
+                logger.debug(f"  Scoring batch {i // 10 + 1} ({len(batch)} jobs)...")
+                batch_scored = score_jobs(batch, resume, config)
+                scored.extend(batch_scored)
 
             if scored:
                 all_scored_jobs.extend(scored)
                 companies_with_jobs += 1
                 titles = [j.get("extracted_title") or j.get("title", "?") for j in scored[:3]]
-                logger.info(f"  {len(scored)} job(s) saved: {', '.join(titles)}{' ...' if len(scored) > 3 else ''}")
+                logger.info(f"  {len(scored)} job(s) scored: {', '.join(titles)}{' ...' if len(scored) > 3 else ''}")
 
             companies_scanned += 1
 
@@ -413,7 +557,7 @@ def run_scan(config: dict, companies: list[dict]) -> None:
 
     state["seen_urls"] = list(seen_urls)
     state["last_scan"] = datetime.now(timezone.utc).isoformat()
-    save_state(state)
+    save_state(state, state_file)
     logger.debug("State saved")
 
     top_jobs = sorted(
@@ -425,20 +569,20 @@ def run_scan(config: dict, companies: list[dict]) -> None:
     for job in all_scored_jobs:
         job["scan_date"] = scan_date
 
-    LAST_SCAN_FILE.parent.mkdir(exist_ok=True)
-    LAST_SCAN_FILE.write_text(json.dumps(all_scored_jobs, indent=2))
-    logger.debug(f"Last scan saved: {len(all_scored_jobs)} total jobs → {LAST_SCAN_FILE}")
+    last_scan_file.parent.mkdir(exist_ok=True)
+    last_scan_file.write_text(json.dumps(all_scored_jobs, indent=2))
+    logger.debug(f"Last scan saved: {len(all_scored_jobs)} total jobs → {last_scan_file}")
 
     history: list[dict] = []
-    if JOB_HISTORY_FILE.exists():
+    if job_history_file.exists():
         try:
-            history = json.loads(JOB_HISTORY_FILE.read_text())
+            history = json.loads(job_history_file.read_text())
         except Exception:
             history = []
     existing_urls = {j["url"] for j in history}
     new_entries = [j for j in all_scored_jobs if j["url"] not in existing_urls]
     history.extend(new_entries)
-    JOB_HISTORY_FILE.write_text(json.dumps(history, indent=2))
+    job_history_file.write_text(json.dumps(history, indent=2))
     logger.debug(f"Job history updated: +{len(new_entries)} new entries ({len(history)} total)")
 
     elapsed = time.time() - scan_start
@@ -459,7 +603,7 @@ def run_scan(config: dict, companies: list[dict]) -> None:
 
     # Always persist results to CSV when there are scored jobs — this is the
     # durable record regardless of whether Telegram is configured.
-    csv_path = _export_to_csv(all_scored_jobs, "scan results") if all_scored_jobs else None
+    csv_path = _export_to_csv(all_scored_jobs, "scan results", _output_dir) if all_scored_jobs else None
 
     if errors and telegram_configured:
         error_msg = f"<b>Job Hunt Errors — {date_str}</b>\n" + "\n".join(errors)

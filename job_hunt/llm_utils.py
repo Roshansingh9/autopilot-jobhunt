@@ -3,7 +3,13 @@ import os
 import subprocess
 import time
 
-from openai import OpenAI, RateLimitError
+from openai import (
+    APIStatusError,
+    APITimeoutError,
+    NotFoundError,
+    OpenAI,
+    RateLimitError,
+)
 
 from job_hunt.log import get_logger
 
@@ -164,6 +170,15 @@ def chat_with_fallback(
                     time.sleep(3)
                     continue
                 logger.warning(f"Rate-limited on {model} (quota exhausted) — trying next model...")
+                break
+            except NotFoundError:
+                logger.warning(f"Model not found: {model} (404) — trying next model...")
+                break
+            except APITimeoutError:
+                logger.warning(f"Timeout on {model} — trying next model...")
+                break
+            except APIStatusError as e:
+                logger.error(f"API error on {model} (HTTP {e.status_code}) — trying next model...")
                 break
             except Exception as e:
                 logger.error(f"LLM error ({model}): {e}")
