@@ -1,0 +1,52 @@
+name: Daily Job Hunt
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # 08:00 IST every day
+    - cron: '30 2 * * *'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Create config.json
+        run: |
+          cp config.example.json config.json
+
+      - name: Inject secrets
+        run: |
+          python - << 'EOF'
+          import json
+
+          with open("config.json") as f:
+              cfg = json.load(f)
+
+          cfg["tinyfish_api_key"] = "${{ secrets.TINYFISH_API_KEY }}"
+          cfg["openrouter_api_key"] = "${{ secrets.OPENROUTER_API_KEY }}"
+
+          cfg["telegram"]["token"] = "${{ secrets.TELEGRAM_TOKEN }}"
+          cfg["telegram"]["chat_id"] = "${{ secrets.TELEGRAM_CHAT_ID }}"
+
+          with open("config.json","w") as f:
+              json.dump(cfg,f,indent=2)
+          EOF
+
+      - name: Run scanner
+        run: |
+          autopilot scan
