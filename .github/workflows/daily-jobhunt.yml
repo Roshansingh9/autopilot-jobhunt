@@ -5,14 +5,14 @@ on:
 
   schedule:
     # 08:00 IST every day
-    - cron: '30 2 * * *'
+    - cron: "30 2 * * *"
 
 jobs:
   scan:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -25,16 +25,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Create config.json
+      - name: Inject secrets into config.json
         run: |
-          cp config.example.json config.json
-
-      - name: Inject secrets
-        run: |
-          python - << 'EOF'
+          python <<EOF
           import json
 
-          with open("config.json") as f:
+          with open("config.json", "r") as f:
               cfg = json.load(f)
 
           cfg["tinyfish_api_key"] = "${{ secrets.TINYFISH_API_KEY }}"
@@ -43,10 +39,27 @@ jobs:
           cfg["telegram"]["token"] = "${{ secrets.TELEGRAM_TOKEN }}"
           cfg["telegram"]["chat_id"] = "${{ secrets.TELEGRAM_CHAT_ID }}"
 
-          with open("config.json","w") as f:
-              json.dump(cfg,f,indent=2)
+          with open("config.json", "w") as f:
+              json.dump(cfg, f, indent=2)
           EOF
+
+      - name: Verify files
+        run: |
+          echo "Repository contents:"
+          ls -R
+          echo ""
+          echo "Resume folder:"
+          ls -l resume
 
       - name: Run scanner
         run: |
           autopilot scan
+
+      - name: Upload output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobhunt-output
+          path: |
+            output/
+            state/
