@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -25,41 +25,76 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Inject secrets into config.json
+      - name: Create config.json
+        run: cp config.example.json config.json
+
+      - name: Configure config
         run: |
           python <<EOF
           import json
 
-          with open("config.json", "r") as f:
+          with open("config.json") as f:
               cfg = json.load(f)
 
+          # ---------------- API KEYS ----------------
           cfg["tinyfish_api_key"] = "${{ secrets.TINYFISH_API_KEY }}"
           cfg["openrouter_api_key"] = "${{ secrets.OPENROUTER_API_KEY }}"
 
           cfg["telegram"]["token"] = "${{ secrets.TELEGRAM_TOKEN }}"
           cfg["telegram"]["chat_id"] = "${{ secrets.TELEGRAM_CHAT_ID }}"
 
+          # ---------------- CANDIDATE ----------------
+          candidate = cfg["candidate"]
+
+          candidate["name"] = "Roshan Kumar Singh"
+          candidate["resume_path"] = "resume/RESUME.md"
+
+          candidate["profile"] = (
+              "Backend-focused Software Engineer and 2026 Computer Science graduate. "
+              "Experienced in Python, FastAPI, PostgreSQL, Redis, AWS, distributed systems, "
+              "algorithms, and applied AI. Amazon ML Summer School Top 5%, "
+              "CodeChef 4-Star (1805)."
+          )
+
+          candidate["seeking"] = (
+              "Software Engineer, Backend Engineer, AI Engineer, "
+              "Machine Learning Engineer, Distributed Systems Engineer"
+          )
+
+          candidate["not_suitable"] = (
+              "Senior/Staff/Principal roles requiring 5+ years of experience, "
+              "non-technical management, pure frontend roles."
+          )
+
+          candidate["relocation_note"] = (
+              "Open to relocation worldwide and remote opportunities."
+          )
+
+          candidate["min_score"] = 65
+          candidate["top_n"] = 10
+
           with open("config.json", "w") as f:
               json.dump(cfg, f, indent=2)
           EOF
 
-      - name: Verify files
+      - name: Verify generated config
         run: |
-          echo "Repository contents:"
+          cat config.json
+
+      - name: Verify resume exists
+        run: |
           ls -R
-          echo ""
-          echo "Resume folder:"
-          ls -l resume
+          test -f resume/RESUME.md
 
       - name: Run scanner
         run: |
           autopilot scan
 
-      - name: Upload output
+      - name: Upload outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jobhunt-output
+          name: autopilot-output
           path: |
             output/
             state/
