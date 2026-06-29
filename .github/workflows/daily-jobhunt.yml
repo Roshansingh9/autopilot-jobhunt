@@ -5,7 +5,6 @@ on:
   workflow_dispatch:
 
   schedule:
-    # 08:00 IST every day
     - cron: "30 2 * * *"
 
 jobs:
@@ -32,7 +31,8 @@ jobs:
           pip install -e .
 
       - name: Create config.json
-        run: cp config.example.json config.json
+        run: |
+          cp config.example.json config.json
 
       - name: Configure config.json
         run: |
@@ -42,66 +42,70 @@ jobs:
           with open("config.json") as f:
               cfg = json.load(f)
 
-          # ---------------- API KEYS ----------------
-
           cfg["tinyfish_api_key"] = "${{ secrets.TINYFISH_API_KEY }}"
           cfg["openrouter_api_key"] = "${{ secrets.OPENROUTER_API_KEY }}"
-
-          # ---------------- TELEGRAM ----------------
 
           cfg["telegram"]["token"] = "${{ secrets.TELEGRAM_TOKEN }}"
           cfg["telegram"]["chat_id"] = "${{ secrets.TELEGRAM_CHAT_ID }}"
 
-          # ---------------- CANDIDATE ----------------
+          cfg["candidate"]["name"] = "Roshan Kumar Singh"
+          cfg["candidate"]["resume_path"] = "resume/RESUME.md"
 
-          c = cfg["candidate"]
-
-          c["name"] = "Roshan Kumar Singh"
-
-          c["resume_path"] = "resume/RESUME.md"
-
-          c["profile"] = (
+          cfg["candidate"]["profile"] = (
               "Backend-focused Software Engineer and 2026 Computer Science graduate. "
               "Strong in Python, FastAPI, PostgreSQL, Redis, AWS, distributed systems, "
-              "algorithms and applied AI. "
-              "Amazon ML Summer School Top 5%. "
-              "CodeChef 4-Star (1805)."
+              "algorithms and applied AI."
           )
 
-          c["seeking"] = (
+          cfg["candidate"]["seeking"] = (
               "Software Engineer, Backend Engineer, AI Engineer, "
-              "Machine Learning Engineer. "
-              "India and Remote only."
+              "Machine Learning Engineer. India and Remote only."
           )
 
-          c["not_suitable"] = (
-              "Senior/Staff/Principal roles requiring 5+ years of experience, "
-              "non-technical roles, frontend-only roles, relocation-only roles outside India."
+          cfg["candidate"]["not_suitable"] = (
+              "Senior roles, Staff roles, Principal roles, "
+              "non-technical roles and frontend-only roles."
           )
 
-          c["relocation_note"] = (
+          cfg["candidate"]["relocation_note"] = (
               "Open to relocation anywhere in India and remote opportunities."
           )
 
-          c["min_score"] = 85
-          c["top_n"] = 5
+          cfg["candidate"]["min_score"] = 85
+          cfg["candidate"]["top_n"] = 5
 
           with open("config.json", "w") as f:
               json.dump(cfg, f, indent=2)
+
+          print("========== GENERATED CONFIG ==========")
+          print(json.dumps(cfg, indent=2))
           EOF
 
       - name: Verify Repository
         run: |
-          echo "Repository Structure"
+          echo "========== CURRENT DIRECTORY =========="
+          pwd
+
+          echo ""
+          echo "========== FILES =========="
           ls -R
 
           echo ""
-          echo "Resume"
+          echo "========== RESUME =========="
           test -f resume/RESUME.md
 
           echo ""
-          echo "Generated Config"
+          echo "========== CONFIG =========="
           cat config.json
+
+          echo ""
+          echo "========== CANDIDATE =========="
+          python - <<EOF
+          import json
+          with open("config.json") as f:
+              cfg=json.load(f)
+          print(cfg["candidate"])
+          EOF
 
       - name: Run Job Scanner
         run: |

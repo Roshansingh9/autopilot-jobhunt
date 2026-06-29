@@ -48,6 +48,12 @@ def load_config() -> dict:
 
     config = json.loads(p.read_text())
 
+    print("========== CONFIG LOADED ==========")
+    print(config["candidate"])
+    print("===================================")
+
+
+
     env_mapping = {
         "TINYFISH_API_KEY": "tinyfish_api_key",
         "LLM_PROVIDER": "llm_provider",
