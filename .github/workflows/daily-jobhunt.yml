@@ -14,6 +14,10 @@ jobs:
 
     env:
       TZ: Asia/Kolkata
+      TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
       - name: Checkout Repository
@@ -34,49 +38,59 @@ jobs:
         run: cp config.example.json config.json
 
       - name: Update config.json
-        env:
-          TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python -c "
-import json, os
+          python - <<'PYTHON'
+          import json
+          import os
 
-with open('config.json') as f:
-    cfg = json.load(f)
+          with open("config.json") as f:
+              cfg = json.load(f)
 
-cfg['tinyfish_api_key'] = os.environ['TINYFISH_API_KEY']
-cfg['openrouter_api_key'] = os.environ['OPENROUTER_API_KEY']
-cfg['openrouter_model'] = 'openrouter/free'
+          cfg["tinyfish_api_key"] = os.environ["TINYFISH_API_KEY"]
+          cfg["openrouter_api_key"] = os.environ["OPENROUTER_API_KEY"]
+          cfg["openrouter_model"] = "openrouter/free"
 
-cfg['telegram']['token'] = os.environ['TELEGRAM_TOKEN']
-cfg['telegram']['chat_id'] = os.environ['TELEGRAM_CHAT_ID']
+          cfg["telegram"]["token"] = os.environ["TELEGRAM_TOKEN"]
+          cfg["telegram"]["chat_id"] = os.environ["TELEGRAM_CHAT_ID"]
 
-cfg['candidate']['name'] = 'Roshan Kumar Singh'
-cfg['candidate']['resume_path'] = 'resume/RESUME.md'
-cfg['candidate']['profile'] = 'Backend-focused Software Engineer skilled in Python, FastAPI, PostgreSQL, Redis, AWS, Distributed Systems and Applied AI. Amazon ML Summer School Top 5%. CodeChef 4★.'
-cfg['candidate']['seeking'] = 'Software Engineer, Backend Engineer, AI Engineer, Machine Learning Engineer. India and Remote.'
-cfg['candidate']['not_suitable'] = 'Senior, Staff, Principal, Manager, Director, Frontend-only roles.'
-cfg['candidate']['relocation_note'] = 'Open to relocation within India and remote opportunities.'
-cfg['candidate']['min_score'] = 80
-cfg['candidate']['top_n'] = 5
+          cfg["candidate"]["name"] = "Roshan Kumar Singh"
+          cfg["candidate"]["resume_path"] = "resume/RESUME.md"
+          cfg["candidate"]["profile"] = (
+              "Backend-focused Software Engineer skilled in Python, FastAPI, "
+              "PostgreSQL, Redis, AWS, Distributed Systems and Applied AI."
+          )
+          cfg["candidate"]["seeking"] = (
+              "Software Engineer, Backend Engineer, AI Engineer, "
+              "Machine Learning Engineer. India and Remote."
+          )
+          cfg["candidate"]["not_suitable"] = (
+              "Senior, Staff, Principal, Manager, Director, Frontend-only roles."
+          )
+          cfg["candidate"]["relocation_note"] = (
+              "Open to relocation within India and remote opportunities."
+          )
+          cfg["candidate"]["min_score"] = 80
+          cfg["candidate"]["top_n"] = 5
 
-with open('config.json','w') as f:
-    json.dump(cfg, f, indent=2)
+          with open("config.json", "w") as f:
+              json.dump(cfg, f, indent=2)
 
-print(json.dumps(cfg['candidate'], indent=2))
-"
+          print("===== GENERATED CONFIG =====")
+          print(json.dumps(cfg["candidate"], indent=2))
+          PYTHON
 
-      - name: Verify Repository
+      - name: Verify Files
         run: |
           pwd
           ls -R
-          test -f resume/RESUME.md
+          echo "===== RESUME ====="
+          ls -l resume
+          echo "===== CONFIG ====="
           cat config.json
 
-      - name: Run Job Scanner
-        run: autopilot scan
+      - name: Run Scanner
+        run: |
+          python -m job_hunt.main scan
 
       - name: Upload Results
         if: always()
