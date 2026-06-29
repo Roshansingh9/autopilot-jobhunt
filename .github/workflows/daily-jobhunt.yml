@@ -70,8 +70,8 @@ jobs:
               "Open to relocation worldwide and remote opportunities."
           )
 
-          candidate["min_score"] = 65
-          candidate["top_n"] = 10
+          candidate["min_score"] = 85
+          candidate["top_n"] = 3
 
           with open("config.json", "w") as f:
               json.dump(cfg, f, indent=2)
