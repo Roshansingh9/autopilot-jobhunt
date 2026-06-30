@@ -371,6 +371,12 @@ def score_jobs(jobs: list[dict], resume: str, config: dict) -> list[dict]:
             elapsed = time.time() - t0
             logger.error(f"  Scoring error (attempt {attempt + 1}/2, {elapsed:.1f}s): {e}")
 
+    # Throttle after every LLM attempt to avoid OpenRouter 429s across companies
+    _delay = config.get("llm_inter_request_delay", 3)
+    if _delay > 0:
+        logger.debug(f"  Post-LLM throttle: {_delay}s")
+        time.sleep(_delay)
+
     if scored is None:
         logger.error("  Skipping batch — could not extract valid JSON after 2 attempts")
         return []

@@ -1,0 +1,119 @@
+name: "Scan Batch"
+description: >
+  Install dependencies, configure candidate profile, restore cached state,
+  run the job scanner for one batch of companies, and upload results.
+
+inputs:
+  batch-index:
+    description: "0-based batch index (0 … total-batches-1)"
+    required: true
+  total-batches:
+    description: "Total number of batches the company list is split into"
+    required: true
+    default: "10"
+  tinyfish-api-key:
+    description: "TinyFish API key"
+    required: true
+  openrouter-api-key:
+    description: "OpenRouter API key"
+    required: true
+  min-score:
+    description: "Minimum LLM score to consider a job worth applying to"
+    required: false
+    default: "80"
+  top-n:
+    description: "Number of top jobs to surface in Telegram"
+    required: false
+    default: "5"
+
+runs:
+  using: "composite"
+  steps:
+
+    # ── Python setup ──────────────────────────────────────────────────────────
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .
+
+    # ── Config ────────────────────────────────────────────────────────────────
+    - name: Create config.json
+      shell: bash
+      run: cp config.example.json config.json
+
+    - name: Configure Candidate Profile
+      shell: bash
+      env:
+        TINYFISH_API_KEY: ${{ inputs.tinyfish-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        MIN_SCORE: ${{ inputs.min-score }}
+        TOP_N: ${{ inputs.top-n }}
+      run: |
+        python - <<'PYEOF'
+        import json, os
+        with open("config.json") as f:
+            cfg = json.load(f)
+
+        cfg["tinyfish_api_key"]       = os.environ["TINYFISH_API_KEY"]
+        cfg["openrouter_api_key"]     = os.environ["OPENROUTER_API_KEY"]
+        cfg["llm_inter_request_delay"] = 3   # seconds between LLM calls
+
+        cfg["candidate"].update({
+            "name":            "Roshan Kumar Singh",
+            "resume_path":     "resume/RESUME.md",
+            "profile":         (
+                "Backend-focused Software Engineer skilled in Python, FastAPI, "
+                "PostgreSQL, Redis, AWS, Distributed Systems and Applied AI."
+            ),
+            "seeking":         (
+                "Software Engineer, Backend Engineer, AI Engineer, "
+                "Machine Learning Engineer. India and Remote."
+            ),
+            "not_suitable":    "Senior, Staff, Principal, Manager, Director, Frontend-only roles.",
+            "relocation_note": "Open to relocation within India and remote opportunities.",
+            "min_score":       int(os.environ.get("MIN_SCORE", "80")),
+            "top_n":           int(os.environ.get("TOP_N", "5")),
+        })
+
+        with open("config.json", "w") as f:
+            json.dump(cfg, f, indent=2)
+
+        print("=== Batch", os.environ.get("BATCH_INDEX", "?"), "config ===")
+        print(json.dumps(cfg["candidate"], indent=2))
+        PYEOF
+
+    # ── State persistence (seen URLs carry over between daily runs) ───────────
+    - name: Restore State Cache
+      uses: actions/cache@v4
+      with:
+        path: state_batch_${{ inputs.batch-index }}/
+        # Unique key per run so each day writes a fresh cache entry.
+        # restore-keys prefix match picks up the most recent previous run.
+        key: batch-${{ inputs.batch-index }}-state-${{ github.run_id }}
+        restore-keys: |
+          batch-${{ inputs.batch-index }}-state-
+
+    # ── Scan ──────────────────────────────────────────────────────────────────
+    - name: Run Scanner
+      shell: bash
+      env:
+        TINYFISH_API_KEY: ${{ inputs.tinyfish-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        BATCH_INDEX: ${{ inputs.batch-index }}
+        TOTAL_BATCHES: ${{ inputs.total-batches }}
+      run: |
+        autopilot scan \
+          --batch ${{ inputs.batch-index }} \
+          --total-batches ${{ inputs.total-batches }}
+
+    # ── Upload (merge job downloads these to assemble final results) ──────────
+    - name: Upload Batch Artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: batch-${{ inputs.batch-index }}
+        path: |
+          state_batch_${{ inputs.batch-index }}/
+          output_batch_${{ inputs.batch-index }}/
+        if-no-files-found: warn

@@ -1,11 +1,11 @@
 """
-Merge results from parallel batch scans into a single Telegram notification.
+Merge results from sequential batch scans into a single Telegram notification.
 
-Called by the GitHub Actions merge job after all scan batches complete:
-    autopilot merge --artifacts-dir artifacts/ --total-batches 3 --min-score 80 --top-n 5
+Called by the GitHub Actions merge job after all 10 batches complete:
+    autopilot merge --artifacts-dir artifacts/ --total-batches 10 --min-score 80 --top-n 5
 
 Also usable locally after running batches manually:
-    autopilot merge --artifacts-dir . --total-batches 3
+    autopilot merge --artifacts-dir . --total-batches 10
 """
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ def _parse_args(argv: list[str]) -> dict:
     """Parse CLI arguments for the merge command."""
     args: dict = {
         "artifacts_dir": Path("artifacts"),
-        "total_batches": 3,
+        "total_batches": 10,
         "min_score": int(os.getenv("MIN_SCORE", "60")),
         "top_n": int(os.getenv("TOP_N", "5")),
         "tg_token": os.getenv("TELEGRAM_TOKEN", ""),

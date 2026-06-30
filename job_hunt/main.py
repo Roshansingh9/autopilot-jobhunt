@@ -3,8 +3,8 @@
 Usage:
   autopilot init                              — set up working directory
   autopilot scan                              — run daily job scan (all companies)
-  autopilot scan --batch 0 --total-batches 3  — scan batch 0 of 3 (parallel runners)
-  autopilot merge --artifacts-dir artifacts/  — merge batch results, send Telegram
+  autopilot scan --batch 0 --total-batches 10  — scan batch 0 of 10 (sequential pipeline)
+  autopilot merge --artifacts-dir artifacts/   — merge all batch results, send Telegram
   autopilot draft #1                          — draft application for job #1
   autopilot draft https://...                 — draft for a specific job URL
   autopilot export                            — export last scan to CSV
@@ -13,7 +13,7 @@ Usage:
   autopilot export --days 7 --min 60          — combine filters
 
 Batch env vars (alternative to CLI flags):
-  BATCH_INDEX=0 TOTAL_BATCHES=3 autopilot scan
+  BATCH_INDEX=0 TOTAL_BATCHES=10 autopilot scan
 """
 import csv
 import json

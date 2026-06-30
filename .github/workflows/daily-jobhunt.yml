@@ -1,4 +1,3 @@
-
 name: Daily Job Hunt
 
 on:
@@ -6,145 +5,316 @@ on:
   schedule:
     - cron: "30 2 * * *"   # 08:00 IST daily
 
-# ── Shared config ─────────────────────────────────────────────────────────────
+# ── Shared constants ──────────────────────────────────────────────────────────
+# Change TOTAL_BATCHES here AND in the merge job's --total-batches flag below
+# if you ever resize the pipeline.
 env:
-  TOTAL_BATCHES: 3
+  TOTAL_BATCHES: "10"
   PYTHON_VERSION: "3.11"
   MIN_SCORE: "80"
   TOP_N: "5"
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Sequential batch pipeline
+#
+#   batch_0 → batch_1 → batch_2 → … → batch_9 → merge
+#
+# Each job runs on a fresh runner.  Shared state (seen URLs) is persisted
+# between DAILY RUNS via actions/cache.  Results for today's MERGE are
+# passed via actions/upload-artifact / actions/download-artifact.
+#
+# "if: always()" on every job ensures one failing batch never aborts the chain.
+# The merge job aggregates whatever artifacts are available.
+# ─────────────────────────────────────────────────────────────────────────────
+
 jobs:
-  # ── Parallel scan: one runner per batch ─────────────────────────────────────
-  scan:
-    name: "Scan — Batch ${{ matrix.batch }}"
+
+  # ── Batch 0 ─────────────────────────────────────────────────────────────────
+  batch_0:
+    name: "Scan 0/10"
     runs-on: ubuntu-latest
-    timeout-minutes: 30          # 15–20 min expected; 30 min hard cap per runner
-
-    strategy:
-      fail-fast: false           # one failing batch must not cancel the others
-      matrix:
-        batch: [0, 1, 2]
-
+    timeout-minutes: 10
     env:
       TZ: Asia/Kolkata
-      TINYFISH_API_KEY: ${{ secrets.TINYFISH_API_KEY }}
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      BATCH_INDEX: ${{ matrix.batch }}
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
+          batch-index:      "0"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-
-      - name: Create config.json
-        run: cp config.example.json config.json
-
-      - name: Configure Candidate Profile
-        run: |
-          python - <<'PYTHON'
-          import json, os
-
-          with open("config.json") as f:
-              cfg = json.load(f)
-
-          cfg["tinyfish_api_key"]   = os.environ["TINYFISH_API_KEY"]
-          cfg["openrouter_api_key"] = os.environ["OPENROUTER_API_KEY"]
-
-          cfg["candidate"].update({
-              "name":             "Roshan Kumar Singh",
-              "resume_path":      "resume/RESUME.md",
-              "profile":          (
-                  "Backend-focused Software Engineer skilled in Python, FastAPI, "
-                  "PostgreSQL, Redis, AWS, Distributed Systems and Applied AI."
-              ),
-              "seeking":          (
-                  "Software Engineer, Backend Engineer, AI Engineer, "
-                  "Machine Learning Engineer. India and Remote."
-              ),
-              "not_suitable":     "Senior, Staff, Principal, Manager, Director, Frontend-only roles.",
-              "relocation_note":  "Open to relocation within India and remote opportunities.",
-              "min_score":        int(os.environ.get("MIN_SCORE", "80")),
-              "top_n":            int(os.environ.get("TOP_N", "5")),
-          })
-
-          with open("config.json", "w") as f:
-              json.dump(cfg, f, indent=2)
-
-          print("=== Candidate config ===")
-          print(json.dumps(cfg["candidate"], indent=2))
-          PYTHON
-
-      - name: Run Scanner (Batch ${{ matrix.batch }} / ${{ env.TOTAL_BATCHES }})
-        run: |
-          autopilot scan \
-            --batch ${{ matrix.batch }} \
-            --total-batches ${{ env.TOTAL_BATCHES }}
-
-      - name: Upload Batch Artifacts
-        if: always()           # upload even when the scan step fails partially
-        uses: actions/upload-artifact@v4
+  # ── Batch 1 ─────────────────────────────────────────────────────────────────
+  batch_1:
+    name: "Scan 1/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_0]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
         with:
-          name: batch-${{ matrix.batch }}
-          path: |
-            state_batch_${{ matrix.batch }}/
-            output_batch_${{ matrix.batch }}/
-          if-no-files-found: warn
+          batch-index:      "1"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
 
-  # ── Merge: runs after ALL batches finish (pass or fail) ─────────────────────
+  # ── Batch 2 ─────────────────────────────────────────────────────────────────
+  batch_2:
+    name: "Scan 2/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_1]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "2"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Batch 3 ─────────────────────────────────────────────────────────────────
+  batch_3:
+    name: "Scan 3/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_2]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "3"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Batch 4 ─────────────────────────────────────────────────────────────────
+  batch_4:
+    name: "Scan 4/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_3]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "4"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Batch 5 ─────────────────────────────────────────────────────────────────
+  batch_5:
+    name: "Scan 5/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_4]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "5"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Batch 6 ─────────────────────────────────────────────────────────────────
+  batch_6:
+    name: "Scan 6/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_5]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "6"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Batch 7 ─────────────────────────────────────────────────────────────────
+  batch_7:
+    name: "Scan 7/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_6]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "7"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Batch 8 ─────────────────────────────────────────────────────────────────
+  batch_8:
+    name: "Scan 8/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_7]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "8"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Batch 9 ─────────────────────────────────────────────────────────────────
+  batch_9:
+    name: "Scan 9/10"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [batch_8]
+    if: always()
+    env:
+      TZ: Asia/Kolkata
+    steps:
+      - name: Inter-batch delay
+        run: sleep 25
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
+      - uses: ./.github/actions/scan-batch
+        with:
+          batch-index:      "9"
+          total-batches:    ${{ env.TOTAL_BATCHES }}
+          tinyfish-api-key: ${{ secrets.TINYFISH_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          min-score:        ${{ env.MIN_SCORE }}
+          top-n:            ${{ env.TOP_N }}
+
+  # ── Merge & Notify ───────────────────────────────────────────────────────────
+  # Runs after ALL batches regardless of pass/fail.
+  # Downloads every available artifact, merges job lists, deduplicates,
+  # sorts by score, and sends ONE Telegram message.
   merge:
     name: "Merge & Notify"
     runs-on: ubuntu-latest
-    needs: scan
-    if: always()               # run even when some scan jobs fail
+    needs:
+      - batch_0
+      - batch_1
+      - batch_2
+      - batch_3
+      - batch_4
+      - batch_5
+      - batch_6
+      - batch_7
+      - batch_8
+      - batch_9
+    if: always()
     timeout-minutes: 10
-
     env:
       TZ: Asia/Kolkata
       TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PYTHON_VERSION }}", cache: pip }
 
       - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
+        run: pip install -e .
 
       - name: Download All Batch Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts/      # each artifact lands in artifacts/batch-N/
+          path: artifacts/        # layout: artifacts/batch-N/state_batch_N/last_scan.json
 
       - name: Show Downloaded Files
-        run: find artifacts/ -type f | sort
+        run: find artifacts/ -type f | sort || true
 
       - name: Merge Results and Send Telegram
         run: |
           autopilot merge \
             --artifacts-dir artifacts/ \
             --total-batches ${{ env.TOTAL_BATCHES }} \
-            --min-score ${{ env.MIN_SCORE }} \
-            --top-n ${{ env.TOP_N }}
+            --min-score     ${{ env.MIN_SCORE }} \
+            --top-n         ${{ env.TOP_N }}
 
-      - name: Upload Merged Results
+      - name: Upload Merged Artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
