@@ -15,10 +15,24 @@ from job_hunt.log import get_logger
 
 logger = get_logger()
 
-# Per-request timeout (seconds) for HTTP-based LLM providers. Without this the
-# openai/anthropic SDKs default to 600s, so a single stalled free-tier model can
-# freeze a scan for 10 minutes. claude_cli has its own subprocess timeout (300s).
-_LLM_REQUEST_TIMEOUT = 120.0
+# Per-request timeout (seconds) for HTTP-based LLM providers.
+_LLM_REQUEST_TIMEOUT = 60.0  # tightened from 120s — a stalled free model wastes the batch
+
+# ── Per-process model cooldown ─────────────────────────────────────────────
+# When a model hits quota (429), mark it unavailable for _QUOTA_COOLDOWN_SECS.
+# This prevents the same exhausted model from being retried on every subsequent
+# company in the batch, which previously wasted ~60 s per company.
+_model_cooldown: dict[str, float] = {}
+_QUOTA_COOLDOWN_SECS = 600  # 10 min — typically covers the rest of a batch run
+
+
+def _is_model_available(model: str) -> bool:
+    return time.time() >= _model_cooldown.get(model, 0.0)
+
+
+def _mark_model_exhausted(model: str) -> None:
+    _model_cooldown[model] = time.time() + _QUOTA_COOLDOWN_SECS
+    logger.warning(f"Model {model!r} quota exhausted — on cooldown for {_QUOTA_COOLDOWN_SECS // 60} min")
 
 
 def _make_openrouter_client(config: dict) -> OpenAI:
@@ -139,49 +153,46 @@ def chat_with_fallback(
 ) -> str:
     primary = config.get("openrouter_model", "nvidia/nemotron-3-super-120b-a12b:free")
     fallbacks = config.get("openrouter_fallback_models", [])
-    models = [primary] + [m for m in fallbacks if m != primary]
+    all_models = [primary] + [m for m in fallbacks if m != primary]
 
-    for model_idx, model in enumerate(models):
-        label = f"[model {model_idx + 1}/{len(models)}] {model}"
-        for attempt in range(2):
-            try:
-                logger.debug(f"LLM call → {label} (attempt {attempt + 1})")
-                t0 = time.time()
-                resp = llm.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
+    available = [m for m in all_models if _is_model_available(m)]
+    skipped = [m for m in all_models if not _is_model_available(m)]
+    if skipped:
+        logger.info(f"Skipping {len(skipped)} cooled-down model(s): {skipped}")
+    if not available:
+        raise RuntimeError("All LLM models are on quota cooldown — wait for cooldown to expire or run later.")
+
+    for model_idx, model in enumerate(available):
+        label = f"[{model_idx + 1}/{len(available)}] {model}"
+        try:
+            logger.debug(f"LLM call → {label}")
+            t0 = time.time()
+            resp = llm.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            elapsed = time.time() - t0
+            text = resp.choices[0].message.content or ""
+            usage = resp.usage
+            if usage:
+                logger.debug(
+                    f"LLM OK: {len(text)} chars in {elapsed:.1f}s "
+                    f"(in={usage.prompt_tokens} out={usage.completion_tokens}) via {model}"
                 )
-                elapsed = time.time() - t0
-                text = resp.choices[0].message.content or ""
-                usage = resp.usage
-                if usage:
-                    logger.debug(
-                        f"LLM response: {len(text)} chars in {elapsed:.1f}s "
-                        f"(in={usage.prompt_tokens} out={usage.completion_tokens} tokens) via {model}"
-                    )
-                else:
-                    logger.debug(f"LLM response: {len(text)} chars in {elapsed:.1f}s via {model}")
-                return text
-            except RateLimitError:
-                if attempt == 0:
-                    logger.warning(f"Rate-limited on {model} — retrying in 3s...")
-                    time.sleep(3)
-                    continue
-                logger.warning(f"Rate-limited on {model} (quota exhausted) — trying next model...")
-                break
-            except NotFoundError:
-                logger.warning(f"Model not found: {model} (404) — trying next model...")
-                break
-            except APITimeoutError:
-                logger.warning(f"Timeout on {model} — trying next model...")
-                break
-            except APIStatusError as e:
-                logger.error(f"API error on {model} (HTTP {e.status_code}) — trying next model...")
-                break
-            except Exception as e:
-                logger.error(f"LLM error ({model}): {e}")
-                break
+            else:
+                logger.debug(f"LLM OK: {len(text)} chars in {elapsed:.1f}s via {model}")
+            return text
+        except RateLimitError:
+            _mark_model_exhausted(model)  # no retry — immediately switch to next model
+        except NotFoundError:
+            logger.warning(f"Model not found: {model} (404) — skipping")
+        except APITimeoutError:
+            logger.warning(f"Timeout on {model} — skipping")
+        except APIStatusError as e:
+            logger.error(f"API error on {model} (HTTP {e.status_code}) — skipping")
+        except Exception as e:
+            logger.error(f"LLM error ({model}): {e}")
 
     raise RuntimeError("All LLM models failed. Check your OpenRouter API key and quota.")

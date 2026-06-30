@@ -41,6 +41,59 @@ _ENGINEERING_KEYWORDS = frozenset({
 
 _MAX_JOBS_PER_COMPANY = 20
 
+# ── Rule-based fallback scoring ──────────────────────────────────────────────
+# Used when all LLM models fail quota — ensures no jobs are silently dropped.
+
+_RULE_ROLES = frozenset({
+    "software engineer", "backend engineer", "backend developer",
+    "ai engineer", "ml engineer", "machine learning engineer",
+    "platform engineer", "data engineer", "sre", "devops engineer",
+    "python developer", "python engineer", "full stack engineer",
+    "software developer", "applied scientist", "research engineer",
+})
+
+_RULE_SKILLS = frozenset({
+    "python", "fastapi", "postgresql", "redis", "aws", "docker", "kubernetes",
+    "distributed", "backend", "api", "microservices", "machine learning",
+    "deep learning", "llm", "rag", "django", "flask", "celery", "kafka",
+    "elasticsearch", "pytorch", "tensorflow", "mlops", "airflow",
+})
+
+_RULE_LOCATION = frozenset({
+    "india", "remote", "hybrid", "bangalore", "bengaluru", "mumbai",
+    "delhi", "hyderabad", "pune", "chennai", "gurgaon", "noida",
+})
+
+
+def _rule_based_score(job: dict, config: dict) -> dict:
+    """Deterministic fallback scorer used when all LLM models are unavailable."""
+    title = (job.get("title") or "").lower()
+    content = (job.get("content") or "").lower()
+    location = (job.get("location") or "").lower()
+    combined = f"{title} {content[:500]}"
+    loc_text = f"{location} {content[:200]}"
+
+    score = 20
+    if any(r in title for r in _RULE_ROLES):
+        score += 25
+    score += min(sum(1 for s in _RULE_SKILLS if s in combined) * 6, 36)
+    if any(loc in loc_text for loc in _RULE_LOCATION):
+        score += 10
+    score = min(score, 82)
+
+    min_score = config.get("candidate", {}).get("min_score", 55)
+    result = job.copy()
+    result.update({
+        "score": score,
+        "extracted_title": job.get("title", ""),
+        "stack": "",
+        "location_remote": job.get("location", ""),
+        "reason": f"[rule-based fallback, LLM unavailable] score={score}",
+        "worth_applying": score >= min_score,
+    })
+    return result
+
+
 JOB_URL_RE = re.compile(
     r"/(job|jobs|opening|openings|position|positions|vacancy|vacancies|role|roles|apply)"
     r"/[a-zA-Z0-9_%@.-]{4,}",
@@ -66,31 +119,28 @@ SEARCH_QUERY = (
     'OR "AI engineer" OR MLOps OR "deep learning")'
 )
 
-SCORE_PROMPT = """You are evaluating job postings for a candidate. Output ONLY a JSON array, no other text.
+_SCORE_SYSTEM = (
+    "You are a job-match scoring API. "
+    "Reply with ONLY a valid JSON array. "
+    "No markdown, no code fences, no explanation. "
+    "Start with [ and end with ]."
+)
 
-CANDIDATE:
-{candidate_profile}
+SCORE_PROMPT = """Score {job_count} jobs for this candidate.
+Output ONLY a JSON array of {job_count} objects — nothing else.
 
-RESUME SUMMARY:
-{resume_summary}
+CANDIDATE: {candidate_profile}
+SKILLS: {resume_summary}
 
-JOBS TO SCORE:
+JOBS:
 {jobs_text}
 
-For each job output:
-{{
-  "job_number": 1,
-  "score": 0-100,
-  "title": "extracted job title",
-  "stack": "key tech from JD (comma-separated, max 6 items)",
-  "location_remote": "location + remote policy",
-  "reason": "one sentence why this fits or doesn't fit the candidate",
-  "worth_applying": true/false
-}}
+Required schema per object:
+{{"job_number":1,"score":0-100,"title":"job title","stack":"t1,t2,t3","location_remote":"place/policy","reason":"one sentence","worth_applying":true}}
 
-Scoring: 80-100 near-perfect; 60-79 good fit; 40-59 partial; <40 poor.
-Set worth_applying=true only if score >= {min_score}.
-Include ALL jobs. Output ONLY the JSON array."""
+Rules: 80-100 excellent; 60-79 good; 40-59 partial; <40 poor.
+worth_applying=true only if score>={min_score}.
+Output ONLY the JSON array. Begin with ["""
 
 EXPORT_FIELDS = [
     "Company", "Role", "Location", "Application URL",
@@ -335,9 +385,9 @@ def score_jobs(jobs: list[dict], resume: str, config: dict) -> list[dict]:
         return []
 
     jobs_text = "\n\n".join(
-        f"JOB {i + 1}:\nCompany: {j['company']} | Location: {j['location']}\n"
-        f"Title: {j['title']}\nURL: {j['url']}\n"
-        f"Content:\n{j.get('content', j.get('snippet', ''))[:1500]}"
+        f"JOB {i + 1}: {j['company']} | {j['location']}\n"
+        f"Title: {j['title']}\n"
+        f"{j.get('content', j.get('snippet', ''))[:800]}"
         for i, j in enumerate(jobs)
     )
 
@@ -345,13 +395,17 @@ def score_jobs(jobs: list[dict], resume: str, config: dict) -> list[dict]:
     candidate_profile = _build_candidate_profile(config)
 
     prompt = SCORE_PROMPT.format(
+        job_count=len(jobs),
         candidate_profile=candidate_profile,
-        resume_summary=resume[:2500],
+        resume_summary=resume[:800],
         jobs_text=jobs_text,
         min_score=min_score,
     )
 
-    messages = [{"role": "user", "content": prompt}]
+    messages = [
+        {"role": "system", "content": _SCORE_SYSTEM},
+        {"role": "user", "content": prompt},
+    ]
     logger.debug(f"  Scoring {len(jobs)} job(s) via LLM (min_score={min_score})...")
 
     scored = None
@@ -362,24 +416,24 @@ def score_jobs(jobs: list[dict], resume: str, config: dict) -> list[dict]:
             elapsed = time.time() - t0
             scored = _extract_json_array(raw)
             if scored is not None:
-                logger.debug(f"  LLM scoring complete in {elapsed:.1f}s — {len(scored)} results parsed")
+                logger.debug(f"  LLM OK in {elapsed:.1f}s — {len(scored)} results")
                 break
-            logger.warning(
-                f"  LLM returned unparseable JSON (attempt {attempt + 1}/2): {raw[:200]!r}"
-            )
+            logger.warning(f"  LLM non-JSON (attempt {attempt + 1}/2, {elapsed:.1f}s): {raw[:120]!r}")
         except Exception as e:
             elapsed = time.time() - t0
-            logger.error(f"  Scoring error (attempt {attempt + 1}/2, {elapsed:.1f}s): {e}")
+            logger.error(f"  LLM error (attempt {attempt + 1}/2, {elapsed:.1f}s): {e}")
 
-    # Throttle after every LLM attempt to avoid OpenRouter 429s across companies
+    # Throttle between batches to avoid OpenRouter 429s across companies
     _delay = config.get("llm_inter_request_delay", 3)
     if _delay > 0:
-        logger.debug(f"  Post-LLM throttle: {_delay}s")
         time.sleep(_delay)
 
     if scored is None:
-        logger.error("  Skipping batch — could not extract valid JSON after 2 attempts")
-        return []
+        logger.warning("  LLM unavailable — using rule-based fallback scoring")
+        scored_objs = [_rule_based_score(j, config) for j in jobs]
+        passing = [j for j in scored_objs if j.get("worth_applying")]
+        logger.info(f"  Rule-based: {len(passing)}/{len(jobs)} jobs passed threshold")
+        return sorted(passing, key=lambda x: x["score"], reverse=True)
 
     results = []
     for item in scored:
@@ -393,19 +447,16 @@ def score_jobs(jobs: list[dict], resume: str, config: dict) -> list[dict]:
         idx = item.get("job_number", 0) - 1
         if 0 <= idx < len(jobs):
             job = jobs[idx].copy()
-            job.update(
-                {
-                    "score": score,
-                    "extracted_title": title,
-                    "stack": item.get("stack", ""),
-                    "location_remote": item.get("location_remote", job["location"]),
-                    "reason": reason,
-                }
-            )
+            job.update({
+                "score": score,
+                "extracted_title": title,
+                "stack": item.get("stack", ""),
+                "location_remote": item.get("location_remote", job["location"]),
+                "reason": reason,
+            })
             results.append(job)
 
-    passing = len(results)
-    logger.debug(f"  {passing}/{len(scored)} jobs passed min_score threshold")
+    logger.debug(f"  {len(results)}/{len(scored)} jobs passed min_score threshold")
     return sorted(results, key=lambda x: x["score"], reverse=True)
 
 
@@ -467,7 +518,14 @@ def run_scan(
 
     scan_start = time.time()
     total = len(companies)
-    logger.info(f"=== Scan started — {total} companies | state={_state_dir} output={_output_dir} ===")
+    batch_timeout_minutes = config.get("batch_timeout_minutes", 7)
+    batch_deadline = scan_start + batch_timeout_minutes * 60
+
+    # ── Pre-create dirs and write sentinel state so artifact upload never fails ──
+    _state_dir.mkdir(parents=True, exist_ok=True)
+    _output_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"=== Scan started — {total} companies | state={_state_dir} output={_output_dir} | budget={batch_timeout_minutes}m ===")
     logger.info(f"Candidate: {config.get('candidate', {}).get('name', 'unknown')}")
     logger.info(f"Min score: {config.get('candidate', {}).get('min_score', 55)} | Top N: {config.get('candidate', {}).get('top_n', 5)}")
     provider = config.get("llm_provider") or "openrouter"
@@ -496,18 +554,37 @@ def run_scan(
     seen_urls: set = set(state.get("seen_urls", []))
     logger.info(f"State loaded — {len(seen_urls)} previously seen URLs")
 
+    # Write a minimal sentinel immediately so the file exists even if the batch times out
+    if not state_file.exists():
+        save_state({"seen_urls": list(seen_urls), "last_scan": None}, state_file)
+
     all_scored_jobs: list[dict] = []
     errors: list[str] = []
     companies_scanned = 0
     companies_with_jobs = 0
+    companies_skipped_budget = 0
 
     for idx, company in enumerate(companies, 1):
-        logger.info(f"[{idx}/{total}] Scanning {company['name']}...")
+        # ── Time budget: stop before GitHub cancels the runner ──────────────
+        elapsed_m = (time.time() - scan_start) / 60
+        remaining_m = (batch_deadline - time.time()) / 60
+        if time.time() > batch_deadline:
+            companies_skipped_budget = total - idx + 1
+            logger.warning(
+                f"Time budget reached at {elapsed_m:.1f}m — "
+                f"stopping with {companies_skipped_budget} company/companies remaining"
+            )
+            break
+
+        logger.info(f"[{idx}/{total}] {company['name']} (budget: {remaining_m:.1f}m left)...")
         try:
             new_jobs = discover_job_urls(tf, company, seen_urls)
             if not new_jobs:
                 logger.info("  No new job URLs found")
                 companies_scanned += 1
+                # Incremental state save so seen_urls persists even if we time out later
+                state["seen_urls"] = list(seen_urls)
+                save_state(state, state_file)
                 continue
 
             # Pre-filter on URL-slug titles before spending TinyFish fetch quota
@@ -523,6 +600,8 @@ def run_scan(
             if not new_jobs:
                 logger.info("  No jobs remaining after pre-filter")
                 companies_scanned += 1
+                state["seen_urls"] = list(seen_urls)
+                save_state(state, state_file)
                 continue
 
             logger.info(f"  {len(new_jobs)} job(s) to fetch...")
@@ -537,6 +616,8 @@ def run_scan(
             if not new_jobs:
                 logger.info("  No jobs remaining after content filter")
                 companies_scanned += 1
+                state["seen_urls"] = list(seen_urls)
+                save_state(state, state_file)
                 continue
 
             logger.info(f"  Scoring {len(new_jobs)} job(s) in batches of 10...")
@@ -555,6 +636,10 @@ def run_scan(
 
             companies_scanned += 1
 
+            # Incremental state save after every company so a timeout doesn't lose progress
+            state["seen_urls"] = list(seen_urls)
+            save_state(state, state_file)
+
         except Exception as company_err:
             msg = f"❌ {company['name']}: {company_err}"
             errors.append(msg)
@@ -564,7 +649,18 @@ def run_scan(
     state["seen_urls"] = list(seen_urls)
     state["last_scan"] = datetime.now(timezone.utc).isoformat()
     save_state(state, state_file)
-    logger.debug("State saved")
+
+    # ── Batch summary ──────────────────────────────────────────────────────────
+    elapsed_total = time.time() - scan_start
+    logger.info(
+        f"=== Batch summary: {companies_scanned}/{total} companies scanned | "
+        f"{companies_with_jobs} with hits | {len(all_scored_jobs)} jobs scored | "
+        f"{elapsed_total / 60:.1f}m elapsed"
+        + (f" | {companies_skipped_budget} skipped (budget)" if companies_skipped_budget else "")
+        + " ==="
+    )
+    if errors:
+        logger.warning(f"  Errors ({len(errors)}): " + " | ".join(errors))
 
     top_jobs = sorted(
         [j for j in all_scored_jobs if j.get("score", 0) >= min_score],

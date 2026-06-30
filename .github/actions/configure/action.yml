@@ -1,0 +1,71 @@
+name: "Configure Job Hunt"
+description: >
+  Create config.json from config.example.json and inject API keys + candidate
+  profile. Shared by both scan-batch and merge jobs so configuration is never
+  duplicated.
+
+inputs:
+  tinyfish-api-key:
+    description: "TinyFish API key"
+    required: true
+  openrouter-api-key:
+    description: "OpenRouter API key"
+    required: true
+  min-score:
+    description: "Minimum LLM score to consider a job worth applying to"
+    required: false
+    default: "80"
+  top-n:
+    description: "Number of top jobs to surface in Telegram"
+    required: false
+    default: "5"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Create config.json
+      shell: bash
+      run: cp config.example.json config.json
+
+    - name: Configure Candidate Profile
+      shell: bash
+      env:
+        TINYFISH_API_KEY:   ${{ inputs.tinyfish-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        MIN_SCORE:          ${{ inputs.min-score }}
+        TOP_N:              ${{ inputs.top-n }}
+      run: |
+        python - <<'PYEOF'
+        import json, os
+        with open("config.json") as f:
+            cfg = json.load(f)
+
+        cfg["tinyfish_api_key"]        = os.environ["TINYFISH_API_KEY"]
+        cfg["openrouter_api_key"]      = os.environ["OPENROUTER_API_KEY"]
+        cfg["llm_inter_request_delay"] = 3   # seconds between LLM calls
+        cfg["batch_timeout_minutes"]   = 7   # stop before GitHub cancels the runner
+
+        cfg["candidate"].update({
+            "name":            "Roshan Kumar Singh",
+            "resume_path":     "resume/RESUME.md",
+            "profile":         (
+                "Backend-focused Software Engineer skilled in Python, FastAPI, "
+                "PostgreSQL, Redis, AWS, Distributed Systems and Applied AI."
+            ),
+            "seeking":         (
+                "Software Engineer, Backend Engineer, AI Engineer, "
+                "Machine Learning Engineer. India and Remote."
+            ),
+            "not_suitable":    "Senior, Staff, Principal, Manager, Director, Frontend-only roles.",
+            "relocation_note": "Open to relocation within India and remote opportunities.",
+            "min_score":       int(os.environ.get("MIN_SCORE", "80")),
+            "top_n":           int(os.environ.get("TOP_N", "5")),
+        })
+
+        with open("config.json", "w") as f:
+            json.dump(cfg, f, indent=2)
+
+        print("=== config.json configured ===")
+        print(json.dumps(cfg["candidate"], indent=2))
+        PYEOF

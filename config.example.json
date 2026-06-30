@@ -12,6 +12,7 @@
   "anthropic_model": "claude-haiku-4-5-20251001",
   "claude_cli_model": "",
   "llm_inter_request_delay": 3,
+  "batch_timeout_minutes": 7,
   "telegram": {
     "token": "YOUR_TELEGRAM_BOT_TOKEN",
     "chat_id": "YOUR_TELEGRAM_CHAT_ID"
