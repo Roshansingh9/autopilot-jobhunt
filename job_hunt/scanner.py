@@ -20,65 +20,104 @@ JOB_HISTORY_FILE = Path("state/job_history.json")
 # ── Deterministic pre-filter constants ──────────────────────────────────────
 
 _BLOCKED_SENIORITY = frozenset({
-    "senior", "staff", "principal", "lead", "manager", "director",
+    "senior", "principal", "lead", "manager", "director",
     "architect", "vp", "head",
+    # "staff" handled separately: "Staff Engineer" = blocked, "Member of Technical Staff" = allowed
 })
 
 _BLOCKED_FUNCTIONS = frozenset({
     "marketing", "sales", "finance", "hr", "recruiter", "recruiting",
-    "talent acquisition", "customer success", "legal", "operations",
+    "talent acquisition", "customer success", "legal",
     "business development", "design", "graphic", "product marketing",
     "account manager", "account executive", "partnership", "brand",
+    "support specialist", "customer support",
 })
 
 _ENGINEERING_KEYWORDS = frozenset({
-    "software", "engineer", "backend", "ai", "ml", "machine learning",
-    "python", "platform", "infrastructure", "distributed", "data",
-    "sre", "devops", "site reliability", "fullstack", "full stack",
-    "cloud", "systems", "developer", "programmer", "scientist",
-    "mlops", "applied", "research", "analytics",
+    # Role titles
+    "software", "engineer", "developer", "programmer", "scientist",
+    "sde", "swe", "mts", "technical staff",
+    # Specializations
+    "backend", "ai", "ml", "machine learning", "platform", "infrastructure",
+    "distributed", "data", "sre", "devops", "site reliability",
+    "fullstack", "full stack", "cloud", "systems", "mlops",
+    "applied", "research", "analytics", "security", "embedded", "firmware",
+    # Entry-level signals (catch "Graduate Software Engineer", "Associate Engineer")
+    "graduate", "associate",
 })
 
 _MAX_JOBS_PER_COMPANY = 20
 
 # ── Rule-based fallback scoring ──────────────────────────────────────────────
-# Used when all LLM models fail quota — ensures no jobs are silently dropped.
+# Used when all LLM models fail quota. Priority: role type > level > location > stack.
 
-_RULE_ROLES = frozenset({
-    "software engineer", "backend engineer", "backend developer",
-    "ai engineer", "ml engineer", "machine learning engineer",
-    "platform engineer", "data engineer", "sre", "devops engineer",
-    "python developer", "python engineer", "full stack engineer",
-    "software developer", "applied scientist", "research engineer",
+# Title words that signal a core engineering role (word-level match)
+_RULE_ENG_WORDS = frozenset({
+    "engineer", "developer", "programmer", "scientist",
+    "sde", "swe", "mts",
+})
+_RULE_PLATFORM_WORDS = frozenset({
+    "platform", "infrastructure", "backend", "devops", "sre",
+    "reliability", "systems", "distributed",
+})
+# Title words that signal entry / early career
+_RULE_ENTRY_WORDS = frozenset({
+    "i", "ii", "1", "2", "junior", "graduate", "grad",
+    "associate", "entry", "new", "fresher", "trainee",
 })
 
 _RULE_SKILLS = frozenset({
-    "python", "fastapi", "postgresql", "redis", "aws", "docker", "kubernetes",
-    "distributed", "backend", "api", "microservices", "machine learning",
-    "deep learning", "llm", "rag", "django", "flask", "celery", "kafka",
-    "elasticsearch", "pytorch", "tensorflow", "mlops", "airflow",
+    # Core CS / engineering fundamentals (high value — broad applicability)
+    "distributed systems", "microservices", "backend", "api", "scalable",
+    "low latency", "high availability", "data structures", "algorithms",
+    # Languages (moderate value)
+    "python", "java", "c++", "golang", "go", "rust", "typescript",
+    # Cloud / infra
+    "aws", "gcp", "azure", "kubernetes", "docker",
+    # Databases
+    "postgresql", "mysql", "mongodb", "redis", "kafka",
+    # AI/ML
+    "machine learning", "deep learning", "llm", "pytorch", "tensorflow",
+    # Frameworks (LOW value — do not dominate)
+    "fastapi", "django", "spring", "react", "node",
 })
 
 _RULE_LOCATION = frozenset({
     "india", "remote", "hybrid", "bangalore", "bengaluru", "mumbai",
     "delhi", "hyderabad", "pune", "chennai", "gurgaon", "noida",
+    "new delhi", "gurugram",
 })
 
 
 def _rule_based_score(job: dict, config: dict) -> dict:
-    """Deterministic fallback scorer used when all LLM models are unavailable."""
+    """Deterministic fallback scorer: role type first, stack last."""
     title = (job.get("title") or "").lower()
     content = (job.get("content") or "").lower()
     location = (job.get("location") or "").lower()
-    combined = f"{title} {content[:500]}"
-    loc_text = f"{location} {content[:200]}"
+    title_words = set(re.split(r"[\s\-_/,|.]+", title))
+    combined = f"{title} {content[:600]}"
+    loc_text = f"{location} {content[:300]}"
 
-    score = 20
-    if any(r in title for r in _RULE_ROLES):
-        score += 25
-    score += min(sum(1 for s in _RULE_SKILLS if s in combined) * 6, 36)
+    score = 20  # base
+
+    # 1. Role type (most important)
+    if title_words & _RULE_ENG_WORDS:
+        score += 30
+    elif title_words & _RULE_PLATFORM_WORDS:
+        score += 22
+
+    # 2. Entry-level / level fit
+    if title_words & _RULE_ENTRY_WORDS:
+        score += 10
+
+    # 3. Location
     if any(loc in loc_text for loc in _RULE_LOCATION):
         score += 10
+
+    # 4. Tech stack — small bonus, capped low so it can't dominate
+    skills_hit = sum(1 for s in _RULE_SKILLS if s in combined)
+    score += min(skills_hit * 3, 15)
+
     score = min(score, 82)
 
     min_score = config.get("candidate", {}).get("min_score", 55)
@@ -114,9 +153,11 @@ ATS_LISTING_RE = re.compile(
 )
 
 SEARCH_QUERY = (
-    'site:{domain} (senior OR staff OR principal OR lead) '
-    '("data scientist" OR "ML engineer" OR "machine learning engineer" '
-    'OR "AI engineer" OR MLOps OR "deep learning")'
+    'site:{domain} '
+    '("software engineer" OR "software developer" OR "SDE" OR "backend engineer" '
+    'OR "platform engineer" OR "infrastructure engineer" OR "AI engineer" '
+    'OR "ML engineer" OR "machine learning engineer" OR "graduate engineer" '
+    'OR "associate engineer" OR "member of technical staff")'
 )
 
 _SCORE_SYSTEM = (
@@ -130,15 +171,26 @@ SCORE_PROMPT = """Score {job_count} jobs for this candidate.
 Output ONLY a JSON array of {job_count} objects — nothing else.
 
 CANDIDATE: {candidate_profile}
-SKILLS: {resume_summary}
+BACKGROUND: {resume_summary}
+
+SCORING PRIORITY (apply in this order — stack is LAST):
+1. ROLE TYPE — Software Engineer / SDE / Backend / Platform / Infrastructure / AI / ML / MTS = strong fit. Non-engineering = reject.
+2. LEVEL FIT — Entry, junior, new-grad, SDE-I/II, Graduate, Associate, MTS-I = excellent for this 2026 CS grad. Senior/Staff/Principal/Lead/Manager = very poor (overqualified req).
+3. LOCATION — India or remote-from-India = bonus. On-site abroad with no remote = penalty.
+4. ENGINEERING DEPTH — interesting technical problem, backend/distributed/systems/AI = bonus.
+5. TECH STACK — MINOR bonus only. Candidate learns any stack quickly. Do NOT penalize absence of a specific framework.
+
+BOOST heavily: Software Engineer, SDE, Graduate Engineer, Associate Engineer, Backend Engineer, Platform Engineer, Infrastructure Engineer, Systems Engineer, AI/ML Engineer, MTS, Core Engineer, Software Developer.
+PENALIZE heavily: Senior, Staff, Principal, Lead, Architect, Manager, Director, VP, Head of — candidate is early-career.
+PENALIZE: Marketing, Sales, HR, Finance, Legal, Design, Operations, Support, Customer Success, Business Development.
 
 JOBS:
 {jobs_text}
 
 Required schema per object:
-{{"job_number":1,"score":0-100,"title":"job title","stack":"t1,t2,t3","location_remote":"place/policy","reason":"one sentence","worth_applying":true}}
+{{"job_number":1,"score":0-100,"title":"job title","stack":"t1,t2","location_remote":"place/policy","reason":"one sentence","worth_applying":true}}
 
-Rules: 80-100 excellent; 60-79 good; 40-59 partial; <40 poor.
+Scoring: 80-100 = SDE/SE/BE role at good company in India or remote, good level fit; 60-79 = good fit; 40-59 = partial; <40 = poor.
 worth_applying=true only if score>={min_score}.
 Output ONLY the JSON array. Begin with ["""
 
@@ -176,8 +228,15 @@ def is_ats_listing(url: str) -> bool:
 # ── Pre-filter helpers ───────────────────────────────────────────────────────
 
 def _has_blocked_seniority(title: str) -> bool:
-    words = set(re.split(r"[\s\-/,|]+", title.lower()))
-    return bool(words & _BLOCKED_SENIORITY)
+    t = title.lower()
+    words = set(re.split(r"[\s\-/,|]+", t))
+    if words & _BLOCKED_SENIORITY:
+        return True
+    # "staff" alone means senior (e.g. "Staff Engineer"), but
+    # "Member of Technical Staff" and "MTS" are entry-level at many companies.
+    if "staff" in words and "member" not in words:
+        return True
+    return False
 
 
 def _has_blocked_function(title: str) -> bool:

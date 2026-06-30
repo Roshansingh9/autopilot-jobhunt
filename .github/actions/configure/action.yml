@@ -50,14 +50,22 @@ runs:
             "name":            "Roshan Kumar Singh",
             "resume_path":     "resume/RESUME.md",
             "profile":         (
-                "Backend-focused Software Engineer skilled in Python, FastAPI, "
-                "PostgreSQL, Redis, AWS, Distributed Systems and Applied AI."
+                "2026 Computer Science graduate with strong foundations in "
+                "Data Structures, Algorithms, Object-Oriented Design, Operating Systems, "
+                "Databases, Computer Networks, Distributed Systems, and scalable backend "
+                "development. Experienced building production software using Python, C++, "
+                "Java, FastAPI, PostgreSQL, Redis, and AWS through internships and projects."
             ),
             "seeking":         (
-                "Software Engineer, Backend Engineer, AI Engineer, "
-                "Machine Learning Engineer. India and Remote."
+                "Software Engineer, Software Development Engineer (SDE), Backend Engineer, "
+                "Platform Engineer, Infrastructure Engineer, AI Engineer, "
+                "Machine Learning Engineer, Member of Technical Staff (MTS). "
+                "India and Remote."
             ),
-            "not_suitable":    "Senior, Staff, Principal, Manager, Director, Frontend-only roles.",
+            "not_suitable":    (
+                "Senior, Staff, Principal, Lead, Manager, Director, VP roles. "
+                "Non-engineering: Marketing, Sales, HR, Finance, Design, Operations."
+            ),
             "relocation_note": "Open to relocation within India and remote opportunities.",
             "min_score":       int(os.environ.get("MIN_SCORE", "80")),
             "top_n":           int(os.environ.get("TOP_N", "5")),

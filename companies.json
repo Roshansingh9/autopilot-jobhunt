@@ -28,7 +28,14 @@
     "region": "IN"
   },
   {
-    "name": "Adobe",
+    "name": "Meta India",
+    "careers_url": "https://www.metacareers.com/",
+    "search_domain": "metacareers.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Adobe India",
     "careers_url": "https://careers.adobe.com/",
     "search_domain": "careers.adobe.com",
     "location": "India",
@@ -63,9 +70,121 @@
     "region": "IN"
   },
   {
-    "name": "Uber",
+    "name": "Uber India",
     "careers_url": "https://www.uber.com/global/en/careers/",
     "search_domain": "uber.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "LinkedIn India",
+    "careers_url": "https://careers.linkedin.com/",
+    "search_domain": "careers.linkedin.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Intuit India",
+    "careers_url": "https://www.intuit.com/careers/",
+    "search_domain": "intuit.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "PayPal India",
+    "careers_url": "https://careers.pypl.com/",
+    "search_domain": "pypl.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Qualcomm India",
+    "careers_url": "https://www.qualcomm.com/company/careers",
+    "search_domain": "qualcomm.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Intel India",
+    "careers_url": "https://jobs.intel.com/",
+    "search_domain": "jobs.intel.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Cisco India",
+    "careers_url": "https://jobs.cisco.com/",
+    "search_domain": "jobs.cisco.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "IBM India",
+    "careers_url": "https://www.ibm.com/employment/",
+    "search_domain": "ibm.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "SAP India",
+    "careers_url": "https://jobs.sap.com/",
+    "search_domain": "jobs.sap.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Arm India",
+    "careers_url": "https://careers.arm.com/",
+    "search_domain": "arm.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Walmart Global Tech",
+    "careers_url": "https://careers.walmart.com/technology",
+    "search_domain": "careers.walmart.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Samsung R&D Institute India",
+    "careers_url": "https://research.samsung.com/india",
+    "search_domain": "research.samsung.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Airbnb India",
+    "careers_url": "https://careers.airbnb.com/",
+    "search_domain": "careers.airbnb.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Snap India",
+    "careers_url": "https://snap.com/en-US/jobs",
+    "search_domain": "snap.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Flipkart",
+    "careers_url": "https://www.flipkartcareers.com/",
+    "search_domain": "flipkartcareers.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Swiggy",
+    "careers_url": "https://careers.swiggy.com/",
+    "search_domain": "careers.swiggy.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Zomato",
+    "careers_url": "https://www.zomato.com/careers",
+    "search_domain": "zomato.com",
     "location": "India",
     "region": "IN"
   },
@@ -87,13 +206,6 @@
     "name": "Razorpay",
     "careers_url": "https://razorpay.com/jobs/",
     "search_domain": "razorpay.com",
-    "location": "India",
-    "region": "IN"
-  },
-  {
-    "name": "Juspay",
-    "careers_url": "https://juspay.io/careers",
-    "search_domain": "juspay.io",
     "location": "India",
     "region": "IN"
   },
@@ -133,6 +245,55 @@
     "region": "IN"
   },
   {
+    "name": "Dream11",
+    "careers_url": "https://www.dream11.com/careers",
+    "search_domain": "dream11.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "ShareChat",
+    "careers_url": "https://sharechat.com/careers",
+    "search_domain": "sharechat.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "MakeMyTrip",
+    "careers_url": "https://careers.makemytrip.com/",
+    "search_domain": "makemytrip.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "PolicyBazaar",
+    "careers_url": "https://jobs.policybazaar.com/",
+    "search_domain": "jobs.policybazaar.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Paytm",
+    "careers_url": "https://paytm.com/careers",
+    "search_domain": "paytm.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Nykaa",
+    "careers_url": "https://careers.nykaa.com/",
+    "search_domain": "nykaa.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "OYO Rooms",
+    "careers_url": "https://www.oyorooms.com/careers",
+    "search_domain": "oyorooms.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
     "name": "Freshworks",
     "careers_url": "https://www.freshworks.com/company/careers/",
     "search_domain": "freshworks.com",
@@ -168,9 +329,352 @@
     "region": "IN"
   },
   {
-    "name": "Rubrik",
+    "name": "Juspay",
+    "careers_url": "https://juspay.io/careers",
+    "search_domain": "juspay.io",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Rubrik India",
     "careers_url": "https://www.rubrik.com/company/careers",
     "search_domain": "rubrik.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Navi Technologies",
+    "careers_url": "https://navi.com/careers",
+    "search_domain": "navi.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Fi Money",
+    "careers_url": "https://fi.money/careers",
+    "search_domain": "fi.money",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Slice",
+    "careers_url": "https://sliceit.com/jobs",
+    "search_domain": "sliceit.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Jar",
+    "careers_url": "https://jar.com/careers",
+    "search_domain": "jar.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Rapido",
+    "careers_url": "https://rapido.bike/careers",
+    "search_domain": "rapido.bike",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Jupiter Money",
+    "careers_url": "https://jupiter.money/careers",
+    "search_domain": "jupiter.money",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "BharatPe",
+    "careers_url": "https://www.bharatpe.com/careers",
+    "search_domain": "bharatpe.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Cashfree Payments",
+    "careers_url": "https://www.cashfree.com/careers/",
+    "search_domain": "cashfree.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Perfios",
+    "careers_url": "https://www.perfios.com/careers",
+    "search_domain": "perfios.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Setu",
+    "careers_url": "https://setu.co/careers",
+    "search_domain": "setu.co",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "PayU India",
+    "careers_url": "https://careers.payu.in/",
+    "search_domain": "payu.in",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Lenskart",
+    "careers_url": "https://www.lenskart.com/careers",
+    "search_domain": "lenskart.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Delhivery",
+    "careers_url": "https://www.delhivery.com/careers",
+    "search_domain": "delhivery.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Shiprocket",
+    "careers_url": "https://www.shiprocket.in/careers",
+    "search_domain": "shiprocket.in",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Porter",
+    "careers_url": "https://porter.in/careers",
+    "search_domain": "porter.in",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Yellow.ai",
+    "careers_url": "https://yellow.ai/careers/",
+    "search_domain": "yellow.ai",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Zoho",
+    "careers_url": "https://careers.zohocorp.com/",
+    "search_domain": "careers.zohocorp.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "ServiceNow India",
+    "careers_url": "https://careers.servicenow.com/",
+    "search_domain": "careers.servicenow.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Workday India",
+    "careers_url": "https://www.workday.com/en-us/company/careers.html",
+    "search_domain": "workday.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Red Hat India",
+    "careers_url": "https://www.redhat.com/en/jobs",
+    "search_domain": "redhat.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Elastic India",
+    "careers_url": "https://www.elastic.co/about/careers",
+    "search_domain": "elastic.co",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Akamai India",
+    "careers_url": "https://www.akamai.com/careers",
+    "search_domain": "akamai.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "NetApp India",
+    "careers_url": "https://careers.netapp.com/",
+    "search_domain": "careers.netapp.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Pure Storage India",
+    "careers_url": "https://www.purestorage.com/company/careers.html",
+    "search_domain": "purestorage.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Commvault India",
+    "careers_url": "https://careers.commvault.com/",
+    "search_domain": "careers.commvault.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "F5 India",
+    "careers_url": "https://www.f5.com/company/careers",
+    "search_domain": "f5.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Juniper Networks India",
+    "careers_url": "https://jobs.juniper.net/",
+    "search_domain": "juniper.net",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Marvell India",
+    "careers_url": "https://www.marvell.com/company/careers/",
+    "search_domain": "marvell.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Nutanix India",
+    "careers_url": "https://www.nutanix.com/company/careers",
+    "search_domain": "nutanix.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Druva",
+    "careers_url": "https://www.druva.com/company/careers",
+    "search_domain": "druva.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "VMware India",
+    "careers_url": "https://careers.broadcom.com/",
+    "search_domain": "careers.broadcom.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Sprinklr India",
+    "careers_url": "https://www.sprinklr.com/careers/",
+    "search_domain": "sprinklr.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Clevertap",
+    "careers_url": "https://clevertap.com/company/careers/",
+    "search_domain": "clevertap.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "MoEngage",
+    "careers_url": "https://www.moengage.com/about/careers/",
+    "search_domain": "moengage.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "WebEngage",
+    "careers_url": "https://webengage.com/careers/",
+    "search_domain": "webengage.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Darwinbox",
+    "careers_url": "https://darwinbox.com/careers",
+    "search_domain": "darwinbox.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Keka HR",
+    "careers_url": "https://www.keka.com/careers",
+    "search_domain": "keka.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "LeadSquared",
+    "careers_url": "https://www.leadsquared.com/company/careers/",
+    "search_domain": "leadsquared.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "CrowdStrike India",
+    "careers_url": "https://www.crowdstrike.com/careers/",
+    "search_domain": "crowdstrike.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Palo Alto Networks India",
+    "careers_url": "https://jobs.paloaltonetworks.com/",
+    "search_domain": "paloaltonetworks.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Zscaler India",
+    "careers_url": "https://www.zscaler.com/careers",
+    "search_domain": "zscaler.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "HubSpot India",
+    "careers_url": "https://www.hubspot.com/company/careers",
+    "search_domain": "hubspot.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Zendesk India",
+    "careers_url": "https://jobs.zendesk.com/",
+    "search_domain": "jobs.zendesk.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Texas Instruments India",
+    "careers_url": "https://careers.ti.com/",
+    "search_domain": "careers.ti.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "AMD India",
+    "careers_url": "https://www.amd.com/en/corporate/careers",
+    "search_domain": "amd.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "MediaTek India",
+    "careers_url": "https://www.mediatek.com/careers",
+    "search_domain": "mediatek.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Micron India",
+    "careers_url": "https://www.micron.com/about/careers",
+    "search_domain": "micron.com",
+    "location": "India",
+    "region": "IN"
+  },
+  {
+    "name": "Western Digital India",
+    "careers_url": "https://www.westerndigital.com/company/careers",
+    "search_domain": "westerndigital.com",
     "location": "India",
     "region": "IN"
   },
@@ -231,9 +735,72 @@
     "region": "Remote"
   },
   {
+    "name": "Scale AI",
+    "careers_url": "https://scale.com/careers",
+    "search_domain": "scale.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Glean",
+    "careers_url": "https://www.glean.com/careers",
+    "search_domain": "glean.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Groq",
+    "careers_url": "https://groq.com/careers/",
+    "search_domain": "groq.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Runway ML",
+    "careers_url": "https://runwayml.com/careers",
+    "search_domain": "runwayml.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Pinecone",
+    "careers_url": "https://www.pinecone.io/careers/",
+    "search_domain": "pinecone.io",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Weaviate",
+    "careers_url": "https://weaviate.io/company/careers",
+    "search_domain": "weaviate.io",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Qdrant",
+    "careers_url": "https://qdrant.tech/careers/",
+    "search_domain": "qdrant.tech",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
     "name": "GitLab",
     "careers_url": "https://about.gitlab.com/jobs/",
     "search_domain": "about.gitlab.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "GitHub",
+    "careers_url": "https://github.com/about/careers",
+    "search_domain": "github.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Cloudflare",
+    "careers_url": "https://www.cloudflare.com/careers/",
+    "search_domain": "cloudflare.com",
     "location": "Remote",
     "region": "Remote"
   },
@@ -255,6 +822,62 @@
     "name": "Railway",
     "careers_url": "https://railway.com/careers",
     "search_domain": "railway.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Netlify",
+    "careers_url": "https://www.netlify.com/careers/",
+    "search_domain": "netlify.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Fastly",
+    "careers_url": "https://www.fastly.com/about/careers",
+    "search_domain": "fastly.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "DigitalOcean",
+    "careers_url": "https://www.digitalocean.com/company/careers/",
+    "search_domain": "digitalocean.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Fly.io",
+    "careers_url": "https://fly.io/jobs",
+    "search_domain": "fly.io",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Render",
+    "careers_url": "https://render.com/careers",
+    "search_domain": "render.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Docker",
+    "careers_url": "https://www.docker.com/careers/",
+    "search_domain": "docker.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Neon",
+    "careers_url": "https://neon.tech/careers",
+    "search_domain": "neon.tech",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "PlanetScale",
+    "careers_url": "https://planetscale.com/company/careers",
+    "search_domain": "planetscale.com",
     "location": "Remote",
     "region": "Remote"
   },
@@ -287,6 +910,132 @@
     "region": "Remote"
   },
   {
+    "name": "HashiCorp",
+    "careers_url": "https://www.hashicorp.com/jobs",
+    "search_domain": "hashicorp.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Tailscale",
+    "careers_url": "https://tailscale.com/careers/",
+    "search_domain": "tailscale.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Temporal",
+    "careers_url": "https://temporal.io/careers",
+    "search_domain": "temporal.io",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Sourcegraph",
+    "careers_url": "https://sourcegraph.com/jobs",
+    "search_domain": "sourcegraph.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "MongoDB",
+    "careers_url": "https://www.mongodb.com/careers",
+    "search_domain": "mongodb.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Snowflake",
+    "careers_url": "https://careers.snowflake.com/",
+    "search_domain": "careers.snowflake.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Confluent",
+    "careers_url": "https://www.confluent.io/careers/",
+    "search_domain": "confluent.io",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "CockroachLabs",
+    "careers_url": "https://www.cockroachlabs.com/careers/",
+    "search_domain": "cockroachlabs.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Databricks",
+    "careers_url": "https://www.databricks.com/company/careers",
+    "search_domain": "databricks.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Fivetran",
+    "careers_url": "https://www.fivetran.com/careers",
+    "search_domain": "fivetran.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "dbt Labs",
+    "careers_url": "https://www.getdbt.com/dbt-labs/open-roles/",
+    "search_domain": "getdbt.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Airbyte",
+    "careers_url": "https://airbyte.com/careers",
+    "search_domain": "airbyte.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Datadog",
+    "careers_url": "https://careers.datadoghq.com/",
+    "search_domain": "careers.datadoghq.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Grafana Labs",
+    "careers_url": "https://grafana.com/about/careers/",
+    "search_domain": "grafana.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "New Relic",
+    "careers_url": "https://newrelic.com/about/careers",
+    "search_domain": "newrelic.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "PagerDuty",
+    "careers_url": "https://www.pagerduty.com/company/work-with-us/",
+    "search_domain": "pagerduty.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Sentry",
+    "careers_url": "https://sentry.io/careers/",
+    "search_domain": "sentry.io",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "PostHog",
+    "careers_url": "https://posthog.com/careers",
+    "search_domain": "posthog.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
     "name": "Linear",
     "careers_url": "https://linear.app/careers",
     "search_domain": "linear.app",
@@ -308,6 +1057,55 @@
     "region": "Remote"
   },
   {
+    "name": "Miro",
+    "careers_url": "https://miro.com/careers/",
+    "search_domain": "miro.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Asana",
+    "careers_url": "https://asana.com/company/jobs",
+    "search_domain": "asana.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "ClickUp",
+    "careers_url": "https://clickup.com/careers",
+    "search_domain": "clickup.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "monday.com",
+    "careers_url": "https://monday.com/careers",
+    "search_domain": "monday.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Loom",
+    "careers_url": "https://www.loom.com/careers",
+    "search_domain": "loom.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Doist",
+    "careers_url": "https://doist.com/careers/",
+    "search_domain": "doist.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Buffer",
+    "careers_url": "https://buffer.com/journey",
+    "search_domain": "buffer.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
     "name": "Automattic",
     "careers_url": "https://automattic.com/work-with-us/",
     "search_domain": "automattic.com",
@@ -315,9 +1113,128 @@
     "region": "Remote"
   },
   {
-    "name": "HashiCorp",
-    "careers_url": "https://www.hashicorp.com/jobs",
-    "search_domain": "hashicorp.com",
+    "name": "Intercom",
+    "careers_url": "https://www.intercom.com/careers",
+    "search_domain": "intercom.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Amplitude",
+    "careers_url": "https://amplitude.com/company/careers",
+    "search_domain": "amplitude.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Mixpanel",
+    "careers_url": "https://mixpanel.com/jobs/",
+    "search_domain": "mixpanel.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "LaunchDarkly",
+    "careers_url": "https://launchdarkly.com/careers/",
+    "search_domain": "launchdarkly.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Airtable",
+    "careers_url": "https://airtable.com/careers",
+    "search_domain": "airtable.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Retool",
+    "careers_url": "https://retool.com/careers",
+    "search_domain": "retool.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Zapier",
+    "careers_url": "https://zapier.com/jobs",
+    "search_domain": "zapier.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Dropbox",
+    "careers_url": "https://jobs.dropbox.com/",
+    "search_domain": "jobs.dropbox.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Replit",
+    "careers_url": "https://replit.com/site/careers",
+    "search_domain": "replit.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Stripe",
+    "careers_url": "https://stripe.com/jobs",
+    "search_domain": "stripe.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Plaid",
+    "careers_url": "https://plaid.com/careers/",
+    "search_domain": "plaid.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Brex",
+    "careers_url": "https://www.brex.com/careers",
+    "search_domain": "brex.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Mercury",
+    "careers_url": "https://mercury.com/jobs",
+    "search_domain": "mercury.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Wise",
+    "careers_url": "https://wise.com/gb/careers",
+    "search_domain": "wise.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Revolut",
+    "careers_url": "https://www.revolut.com/careers",
+    "search_domain": "revolut.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Rippling",
+    "careers_url": "https://www.rippling.com/careers",
+    "search_domain": "rippling.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Deel",
+    "careers_url": "https://www.deel.com/careers",
+    "search_domain": "deel.com",
+    "location": "Remote",
+    "region": "Remote"
+  },
+  {
+    "name": "Remote",
+    "careers_url": "https://remote.com/careers",
+    "search_domain": "remote.com",
     "location": "Remote",
     "region": "Remote"
   }
